@@ -508,9 +508,11 @@ version = "0.1.0"
 dependencies = [
  "adk-rust",
  "anyhow",
+ "async-trait",
  "serde",
  "serde_json",
  "surrealdb",
+ "thiserror 2.0.18",
  "tokio",
 ]
 
