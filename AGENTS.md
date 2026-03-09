@@ -346,6 +346,28 @@ gc report
 
 ---
 
+## 🛠️ Advanced Tool Calling Patterns (NEW)
+
+> **Optimize context windows and execution performance with these advanced paradigms:**
+
+### 1. Tool Search (Búsqueda de herramientas)
+**Problem**: Defining too many tools at once bloats the LLM context window, causing high token usage before the agent even begins.
+**Solution**: Use a "tool_search" tool to dynamically load only the definitions of tools necessary for a specific task. This drastically reduces initial token load and improves processing speed.
+
+### 2. Programmatic Tool Calling (Llamada programática a herramientas)
+**Problem**: Processing large datasets iteratively (e.g., analyzing budgets for many team members) results in slow and costly individual tool calls.
+**Solution**: Rather than calling tools repetitively, write and execute code (in Python or Bash within the execution sandbox) to orchestrate a loop that processes the data in bulk. This increases accuracy and minimizes redundant LLM inferences.
+
+### 3. Tool Bridge Architecture (Arquitectura de puente)
+**Problem**: Exposing direct tool access within isolated sandboxes introduces security risks.
+**Solution**: The sandbox environment executes code but routes all necessary tool calls via a secure backend bridge application, keeping API credentials hidden and preventing direct outbound internet access.
+
+### 4. Tool Usage Examples
+**Problem**: Complex tool parameters can confuse LLMs, reducing success rates.
+**Solution**: Always provide extensive and concrete examples when injecting tool definitions. Implementing tool examples has been proven to elevate accuracy from 72% to over 90%.
+
+---
+
 ## 🚀 Proactive Execution Protocol (NUEVO)
 
 > **"No sugerir, HACER"**
