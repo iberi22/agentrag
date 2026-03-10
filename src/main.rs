@@ -3,7 +3,7 @@ use axum::{
     routing::{get, post},
     Router,
 };
-use std::{net::SocketAddr, sync::Arc};
+use std::{env, net::SocketAddr, sync::Arc};
 use surrealdb::{
     engine::any::connect,
     opt::auth::Root,
@@ -12,6 +12,7 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 mod agents;
 mod memory;
+mod secrets;
 mod server;
 mod tools;
 
@@ -33,13 +34,24 @@ async fn main() -> Result<()> {
 
     tracing::info!("Starting Cortex - Cognitive Memory System");
 
-    let db = connect("ws://localhost:8000").await?;
+    let surreal_url = env::var("CORTEX_SURREALDB_URL")
+        .unwrap_or_else(|_| "ws://localhost:8000".to_string());
+    let surreal_username = env::var("CORTEX_SURREALDB_USERNAME")
+        .unwrap_or_else(|_| "root".to_string());
+    let surreal_password = env::var("CORTEX_SURREALDB_PASSWORD")
+        .unwrap_or_else(|_| "root".to_string());
+    let surreal_namespace = env::var("CORTEX_SURREALDB_NS")
+        .unwrap_or_else(|_| "agentrag".to_string());
+    let surreal_database = env::var("CORTEX_SURREALDB_DB")
+        .unwrap_or_else(|_| "system3".to_string());
+
+    let db = connect(&surreal_url).await?;
     db.signin(Root {
-        username: "root".to_string(),
-        password: "root".to_string(),
+        username: surreal_username,
+        password: surreal_password,
     })
     .await?;
-    db.use_ns("agentrag").use_db("system3").await?;
+    db.use_ns(surreal_namespace).use_db(surreal_database).await?;
 
     let memory = QmdMemory::new(Arc::new(db));
     memory.init().await?;
