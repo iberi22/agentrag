@@ -1,0 +1,30 @@
+name: Cortex Index
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - '**.md'
+      - '.github/workflows/cortex-index.yml'
+  workflow_dispatch:
+
+jobs:
+  index:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Cortex
+        run: |
+          docker build -t cortex:latest .
+
+      - name: Generate Index
+        run: |
+          docker run --rm -v ${{ github.workspace }}:/data/projects cortex:latest \
+            curl -X POST http://localhost:8003/code/scan -H "Content-Type: application/json" -d '{}'
+
+      - name: Commit Index
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "ci: Update Cortex index"
+          file_pattern: ".cortex/index.json"
