@@ -144,6 +144,28 @@ security:
 
 ---
 
+## 📈 Data Flow & Architecture Visualizations
+
+### Cortex Core Architecture Data Flow
+This infographic illustrates the top-down data flow through the Cortex system architecture:
+1. **API Layer**: Data (queries or documents) enters via REST, WebSocket, or MCP protocols.
+2. **Application Layer**: Business logic and use cases process the incoming requests.
+3. **Domain Layer**: The core cognitive engine where Memory and Belief Graphs are managed, along with Agent orchestration.
+4. **Infrastructure Layer**: The foundation where data is persistently stored in SurrealDB and the Vector Store for fast hybrid retrieval.
+
+![Cortex Architecture Flow](docs/assets/cortex_architecture_flow.png)
+
+### Agent Memory Interaction Data Flow
+This infographic details the step-by-step process of how an AI Agent interacts with the Cortex memory system:
+1. **Agent Query**: The agent initiates a request for context or information.
+2. **Hybrid Search**: Cortex performs a hybrid search combining Semantic Vector Search and Keyword Search (BM25) against the unified memory store.
+3. **Belief Graph Reasoning**: Retrieved data is correlated and enriched using the Belief Graph to extract conceptual relationships.
+4. **Action Output**: The synthesized, rich context is returned to the agent (System 1/2/3) to execute actions or generate responses.
+
+![Agent Memory Interaction](docs/assets/cortex_agents_interaction.png)
+
+---
+
 ## 🏗️ Architecture
 
 ```

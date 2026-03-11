@@ -1,34 +1,78 @@
 {
-   "_comment": "Feature tracking file inspired by Anthropic's long-running agent research. JSON is used because LLMs are less likely to accidentally modify JSON compared to Markdown.",
+   "_comment": "Feature tracking file for Cortex Cognitive Memory System.",
    "metadata": {
-      "project": "Git-Core Protocol",
-      "created": "2025-12-05",
-      "last_verified": null,
-      "total_features": 0,
-      "passing": 0,
-      "failing": 0
+      "project": "Cortex",
+      "created": "2026-03-05",
+      "last_verified": "2026-03-10",
+      "total_features": 4,
+      "passing": 3,
+      "failing": 1
    },
    "features": [
       {
-         "id": "feat-template",
-         "category": "example",
-         "description": "Template feature - replace with actual project features",
+         "id": "feat-unified-storage",
+         "category": "core",
+         "description": "Unified Storage using SurrealDB for Vector and Graph data",
          "steps": [
-            "Step 1: Describe what to do",
-            "Step 2: Describe expected outcome",
-            "Step 3: Describe verification method"
+            "Initialize SurrealDB embedded instance",
+            "Store high-dimensional vectors for semantic search",
+            "Store graph nodes for belief relationships"
+         ],
+         "passes": true,
+         "verified_by": "manual",
+         "github_issue": null,
+         "last_tested": "2026-03-10",
+         "notes": "Implemented in memory/surreal_store.rs"
+      },
+      {
+         "id": "feat-hybrid-search",
+         "category": "search",
+         "description": "Hybrid Search combining BM25 keyword matching and Vector retrieval",
+         "steps": [
+            "Index markdown files with Tantivy",
+            "Perform vector search in SurrealDB",
+            "Rerank and combine results"
+         ],
+         "passes": true,
+         "verified_by": "manual",
+         "github_issue": null,
+         "last_tested": "2026-03-10",
+         "notes": "Implemented in memory/qmd_memory.rs"
+      },
+      {
+         "id": "feat-belief-graph",
+         "category": "cognitive",
+         "description": "Belief Graph for conceptual relationship mapping",
+         "steps": [
+            "Define relationship nodes in SurrealDB",
+            "Implement extraction logic for agent insights",
+            "Verify graph traversal performance"
          ],
          "passes": false,
-         "verified_by": "manual | script-name | test-command",
+         "verified_by": "manual",
          "github_issue": null,
          "last_tested": null,
-         "notes": "Delete this template when adding real features"
+         "notes": "Work in progress in memory/belief_graph.rs"
+      },
+      {
+         "id": "feat-mcp-server",
+         "category": "integration",
+         "description": "Model Context Protocol (MCP) Server for OpenClaw integration",
+         "steps": [
+            "Implement MCP tool definitions",
+            "Expose memory search as a tool",
+            "Verify connectivity with OpenClaw"
+         ],
+         "passes": true,
+         "verified_by": "manual",
+         "github_issue": null,
+         "last_tested": "2026-03-09",
+         "notes": "Implemented in server/mcp_server.rs"
       }
    ],
    "verification_commands": {
-      "all": "npm test",
-      "unit": "npm run test:unit",
-      "e2e": "npm run test:e2e",
-      "lint": "npm run lint"
+      "all": "cargo test",
+      "unit": "cargo test --lib",
+      "lint": "cargo clippy"
    }
 }
