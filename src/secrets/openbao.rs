@@ -1,6 +1,6 @@
 use async_trait::async_trait;
-
-use crate::secrets::{store::SecretStore, SecretError, SecretResult};
+use crate::secrets::store::SecretStore;
+use crate::secrets::{SecretResult, SecretError};
 
 pub struct OpenBaoSecretStore {
     address: String,
@@ -19,24 +19,14 @@ impl OpenBaoSecretStore {
 #[async_trait]
 impl SecretStore for OpenBaoSecretStore {
     async fn get(&self, _key: &str) -> SecretResult<String> {
-        Err(SecretError::ProviderError(format!(
-            "OpenBao provider not yet fully implemented for {}",
-            self.address
-        )))
+        Err(SecretError::ProviderError("OpenBao provider not yet fully implemented".to_string()))
     }
 
     async fn set(&self, _key: &str, _value: &str) -> SecretResult<()> {
-        let _ = &self.token;
-        Err(SecretError::ProviderError(format!(
-            "OpenBao provider not yet fully implemented for {}",
-            self.address
-        )))
+        Err(SecretError::ProviderError("OpenBao provider not yet fully implemented".to_string()))
     }
 
     async fn delete(&self, _key: &str) -> SecretResult<()> {
-        Err(SecretError::ProviderError(format!(
-            "OpenBao provider not yet fully implemented for {}",
-            self.address
-        )))
+        Err(SecretError::ProviderError("OpenBao provider not yet fully implemented".to_string()))
     }
 }

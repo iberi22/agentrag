@@ -1,0 +1,69 @@
+{
+  "name": "planka",
+  "description": "Kanban board management tool for project organization",
+  "base_url": "http://localhost:3000",
+  "enabled": true,
+  "endpoints": {
+    "boards": {
+      "list": "/api/boards",
+      "get": "/api/boards/:id",
+      "create": "/api/boards",
+      "update": "/api/boards/:id",
+      "delete": "/api/boards/:id"
+    },
+    "lists": {
+      "list": "/api/lists",
+      "get": "/api/lists/:id",
+      "create": "/api/lists",
+      "update": "/api/lists/:id",
+      "delete": "/api/lists/:id",
+      "move": "/api/lists/:id/move"
+    },
+    "cards": {
+      "list": "/api/cards",
+      "get": "/api/cards/:id",
+      "create": "/api/cards",
+      "update": "/api/cards/:id",
+      "delete": "/api/cards/:id",
+      "move": "/api/cards/:id/move"
+    },
+    "labels": {
+      "list": "/api/labels",
+      "create": "/api/labels",
+      "update": "/api/labels/:id",
+      "delete": "/api/labels/:id"
+    },
+    "users": {
+      "me": "/api/users/me",
+      "list": "/api/users",
+      "get": "/api/users/:id"
+    },
+    "attachments": {
+      "upload": "/api/attachments",
+      "delete": "/api/attachments/:id"
+    }
+  },
+  "auth": {
+    "type": "session",
+    "login_endpoint": "/api/users/login"
+  },
+  "rate_limit": {
+    "requests_per_minute": 60
+  },
+  "example_usage": {
+    "create_card": {
+      "method": "POST",
+      "endpoint": "/api/cards",
+      "body": {
+        "listId": "list_id",
+        "name": "Task title",
+        "description": "Task description",
+        "position": 0
+      }
+    },
+    "get_board": {
+      "method": "GET",
+      "endpoint": "/api/boards/:id"
+    }
+  }
+}

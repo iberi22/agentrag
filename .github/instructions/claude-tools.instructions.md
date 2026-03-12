@@ -35,7 +35,7 @@ Claude uses `input_schema` format for tool definitions:
 
 ### 2. Descriptions
 - Write clear, concise descriptions
-- Include example inputs when helpful
+- Include concrete and comprehensive usage examples. (e.g., this can increase accuracy from 72% to 90% handling complex parameters)
 - Mention edge cases
 
 ### 3. Parameters
@@ -61,6 +61,12 @@ For complex tasks, Claude can "think" before responding:
 Claude can invoke multiple tools simultaneously:
 - Use when operations are independent
 - Improves efficiency for batch operations
+
+### Programmatic Tool Orchestration
+For repetitive tasks looping over datasets (like budget analysis):
+- Do not manually call tools over and over
+- Use a code sandbox environment to write a loop orchestrating tool calls programmatically (Llamada programática a herramientas)
+- This significantly reduces context token consumption and speeds up task completion
 
 ### Context Awareness
 - Claude maintains conversation context

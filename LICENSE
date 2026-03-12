@@ -1,0 +1,184 @@
+Business Source License 1.1
+
+Parameters
+
+Licensor:             SouthWest AI Labs
+Licensed Work:        Cortex 0.2.0
+Additional Use Grant: See "Additional Use Grants" below
+
+                    Business Source License 1.1
+
+                  Terms and Conditions
+
+Copyright (c) 2026 SouthWest AI Labs
+
+1. Definitions.
+
+    "Licensed Rights" means the rights to Use the Licensed Work
+    granted by this License.
+
+    "License" means this Business Source License, as well as any
+    future version officially adopted by SouthWest AI Labs.
+
+    "Licensor" means SouthWest AI Labs.
+
+    "Use" means to do anything with the Licensed Work that would
+    require permission under the applicable Copyright or Database
+    Right, including but not limited to:
+        a) copying, adapting, bug-fixing, maintaining, developing
+           new or derivative works from;
+        b) reproducing, preparing, Distributing, publicly performing
+           and publicly displaying;
+        c) publishing, selling, renting, leasing, or lending;
+        d) sublicensing; and
+        e) otherwise exploiting the Licensed Rights.
+
+    "Licensed Work" means the program known as "Cortex", including
+    all source code, documentation, and associated files.
+
+    "Source" means form of a work other than a machine-readable
+    form, including but not limited to:
+        a) source code, scripts, and build files;
+        b) documentation, including end-user documentation,
+           administrator documentation, and installation guides;
+        c) data models and schemas; and
+        d) test suites.
+
+    "Change Date" means March 11, 2029 (three years from the
+    Release Date).
+
+    "Change Log" means a list of entries in the changelog for the
+    Licensed Work, recorded in a format specified by the Licensor.
+
+    "Your" means the individual or entity exercising the Licensed
+    Rights.
+
+2. License Grant.
+
+    Subject to the terms and conditions of this License, Licensor
+    hereby grants to You a worldwide, royalty-free, non-exclusive,
+    perpetual, irrevocable copyright license to Use the Licensed Work
+    for any purpose, including the right to:
+
+    a) Reproduce, prepare derivative works based upon, and
+       distribute copies of the Licensed Work;
+
+    b) Create, reproduce, prepare, and distribute derivative works
+       based upon the Licensed Work, in any form;
+
+    c) publicly perform, publicly display, reproduce, prepare
+       derivative works based upon, and distribute the Licensed Work
+       as provided in this License.
+
+    The above copyright license is subject to Sections 3 and 4 below.
+
+3. Conditions and Limitations.
+
+    a) Attribution. You must ensure that anyone who receives a copy
+       of the Licensed Work from You also receives a copy of this
+       License, along with the Licensed Work. You must also ensure
+       that such attribution is reasonably practical in the context
+       of Your specific application.
+
+    b) No Sublicensing. You may not sublicense, assign, or otherwise
+       transfer the Licensed Work, this License, or any rights granted
+       hereunder to any third party without prior written consent of
+       Licensor.
+
+    c) Non-Commercial Use Only. Unless separately licensed by Licensor
+       under a separate agreement, You may not Use the Licensed Work
+       for commercial purposes. Commercial purposes include, but are
+       not limited to:
+         i) selling, renting, leasing, or lending the Licensed Work;
+        ii) providing services to third parties using the Licensed
+            Work for a fee; or
+       iii) offering the Licensed Work as a service to third parties.
+
+    d) SaaS Restriction. You may not offer the Licensed Work as a
+       Software-as-a-Service (SaaS) product without a separate
+       commercial license from Licensor.
+
+    e) Cloud Deployment. You may deploy the Licensed Work on cloud
+       infrastructure (including but not limited to AWS, Google Cloud,
+       Azure, Cloudflare) for Your own internal business purposes.
+       Such deployment does not constitute commercial use under Section
+       3(c) if You are not charging third parties for access to or
+       use of the deployed Licensed Work.
+
+4. Change Date; Change Log.
+
+    a) This License expires on the Change Date.
+
+    b) On the Change Date, Licensor will make a reasonable effort to
+       publish a Change Log. On expiration, the Licensed Work shall be
+       available under the terms of the Apache License version 2.0,
+       as published by the Apache Software Foundation.
+
+5. Warranty and Disclaimer.
+
+    THE LICENSED WORK IS PROVIDED ON AN "AS IS" BASIS, WITHOUT
+    WARRANTIES OR CONDITIONS OF ANY KIND, EITHER EXPRESS OR IMPLIED,
+    INCLUDING WITHOUT LIMITATION ANY WARRANTIES OR CONDITIONS OF
+    TITLE, NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A
+    PARTICULAR PURPOSE. YOU ARE SOLELY RESPONSIBLE FOR DETERMINING
+    THE APPROPRIATENESS OF USING OR REDISTRIBUTING THE LICENSED WORK
+    AND ASSUME ANY RISKS ASSOCIATED WITH YOUR EXERCISE OF PERMISSIONS
+    UNDER THIS LICENSE.
+
+6. Limitation of Liability.
+
+    IN NO EVENT WILL LICENSOR BE LIABLE TO YOU ON ANY LEGAL THEORY
+    FOR ANY SPECIAL, DIRECT, INDIRECT, INCIDENTAL, CONSEQUENTIAL,
+    PUNITIVE, OR EXEMPLARY DAMAGES ARISING OUT OF OR RELATED TO THIS
+    LICENSE OR THE USE OR INABILITY TO USE THE LICENSED WORK,
+    INCLUDING BUT NOT LIMITED TO PROCUREMENT OF SUBSTITUTE GOODS OR
+    SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+    REGARDLESS OF WHETHER LICENSOR HAS BEEN ADVISED OF THE
+    POSSIBILITY OF SUCH DAMAGES.
+
+7. General.
+
+    If any provision of this License is held to be unenforceable, such
+    provision shall be reformed only to the extent necessary to make it
+    enforceable. Any other provision of this License shall not affect
+    the enforceability of the remainder of this License.
+
+    This License represents the complete agreement concerning the
+    Licensed Work between the parties and supersedes all prior
+    agreements and understandings, whether written or oral.
+
+    This License is binding on and inures to the benefit of the
+    parties and their respective successors and permitted assigns.
+
+---
+
+Additional Use Grants
+
+The following entities are granted additional rights under this License:
+
+1. SouthWest AI Labs
+   - Full rights to use, modify, commercialize, and sublicense
+   - All rights reserved
+
+2. Tripro.cl
+   - Full rights to use Cortex in all Tripro.cl products
+   - Integration with ManteniApp allowed
+   - Sublicensing rights for Tripro.cl customers
+
+3. Authorized Partners
+   - Contact SouthWest AI Labs for commercial licensing
+   - Email: partners@southwest-ai.labs
+
+---
+
+Contact Information
+
+For licensing questions or to request a commercial license:
+
+Email: licensing@southwest-ai.labs
+Web: https://southernwest.ai/labs
+
+---
+
+This license is based on the Business Source License (BSL) 1.1 template
+by SouthWest AI Labs.

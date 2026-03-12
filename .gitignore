@@ -44,6 +44,8 @@ tmp/
 temp/
 *.tmp
 *.temp
+.codex-tmp/
+.cortex/
 
 # OS files
 .DS_Store
@@ -65,3 +67,10 @@ tools/email-handler/token.json
 # Added by cargo
 
 /target
+
+BUSINESS_PLAN.md
+
+# Sensitive files
+*.env*
+code_graph.db*
+data/

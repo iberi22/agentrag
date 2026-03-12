@@ -1,9 +1,10 @@
 //! System 1 - Retriever Agent
-//! 
+//!
 //! Recibe queries del usuario, busca en memoria híbrida y retorna contexto relevante.
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 use tracing::{info, warn};
 
 use crate::memory::qmd_memory::QmdMemory;
@@ -53,22 +54,26 @@ impl Default for RetrieverConfig {
 
 /// System 1 - Retriever Agent (simplificado para compilación)
 pub struct System1Retriever {
-    memory: QmdMemory,
+    memory: Arc<QmdMemory>,
     config: RetrieverConfig,
 }
 
 impl System1Retriever {
     /// Crea un nuevo retriever
-    pub fn new(memory: QmdMemory, config: RetrieverConfig) -> Self {
+    pub fn new(memory: Arc<QmdMemory>, config: RetrieverConfig) -> Self {
         Self { memory, config }
     }
 
     /// Ejecuta la retrieval de manera asíncrona
-    pub async fn run(&self, query: &str, search_type: Option<SearchType>) -> Result<RetrievalResult> {
+    pub async fn run(
+        &self,
+        query: &str,
+        search_type: Option<SearchType>,
+    ) -> Result<RetrievalResult> {
         let start = std::time::Instant::now();
-        
+
         info!("🔍 System1 starting retrieval for query: {}", query);
-        
+
         let selected_search_type = search_type.unwrap_or(self.config.default_search_type.clone());
         let raw_documents = match selected_search_type {
             SearchType::Keyword => self.memory.search(query, self.config.max_results).await?,
@@ -84,7 +89,9 @@ impl System1Retriever {
                 }
             },
             SearchType::Semantic => {
-                warn!("Semantic search requested without embeddings provider; falling back to BM25");
+                warn!(
+                    "Semantic search requested without embeddings provider; falling back to BM25"
+                );
                 self.memory.search(query, self.config.max_results).await?
             }
         };
@@ -95,8 +102,7 @@ impl System1Retriever {
             .map(|(index, doc)| RetrievedDocument {
                 id: doc
                     .id
-                    .as_ref()
-                    .map(|record_id| format!("{}:{:?}", record_id.table.as_str(), record_id.key))
+                    .clone()
                     .unwrap_or_else(|| format!("memory:{}", index)),
                 path: doc.path,
                 content: doc.content,
@@ -106,7 +112,7 @@ impl System1Retriever {
             .collect();
 
         let total = documents.len();
-        
+
         info!(
             "✅ System1 retrieved {} documents in {:?}",
             total,
@@ -129,7 +135,7 @@ mod tests {
     #[test]
     fn test_retriever_config_defaults() {
         let config = RetrieverConfig::default();
-        
+
         assert_eq!(config.max_results, 10);
         assert_eq!(config.min_relevance_score, 0.3);
         assert!(matches!(config.default_search_type, SearchType::Hybrid));

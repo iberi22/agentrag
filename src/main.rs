@@ -1,30 +1,29 @@
+// Cortex - Cognitive Memory System
+// Minimal viable slice for production
+
 use anyhow::Result;
 use axum::{
+    body::Body,
+    http::{Request, StatusCode},
+    middleware::{self, Next},
+    response::{IntoResponse, Response},
     routing::{get, post},
     Router,
 };
-use std::{env, net::SocketAddr, sync::Arc};
-use surrealdb::{
-    engine::any::connect,
-    opt::auth::Root,
-};
+use std::net::SocketAddr;
+use std::sync::Arc;
+use tokio::sync::RwLock;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-mod agents;
-mod memory;
-mod secrets;
-mod server;
-mod tools;
-
-use agents::{AgentRuntime, RuntimeConfig};
-use memory::{belief_graph::SharedBeliefGraph, qmd_memory::QmdMemory};
-
-#[derive(Clone)]
-pub(crate) struct AppState {
-    pub memory: QmdMemory,
-    pub runtime: Arc<AgentRuntime>,
-    pub belief_graph: SharedBeliefGraph,
-}
+use cortex::{
+    agents::{AgentRuntime, RuntimeConfig},
+    memory::{
+        belief_graph::{BeliefGraph, SharedBeliefGraph},
+        file_indexer::FileIndexer,
+        qmd_memory::QmdMemory,
+    },
+    server, AppState,
+};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -34,46 +33,70 @@ async fn main() -> Result<()> {
 
     tracing::info!("Starting Cortex - Cognitive Memory System");
 
-    let surreal_url = env::var("CORTEX_SURREALDB_URL")
-        .unwrap_or_else(|_| "ws://localhost:8000".to_string());
-    let surreal_username = env::var("CORTEX_SURREALDB_USERNAME")
-        .unwrap_or_else(|_| "root".to_string());
-    let surreal_password = env::var("CORTEX_SURREALDB_PASSWORD")
-        .unwrap_or_else(|_| "root".to_string());
-    let surreal_namespace = env::var("CORTEX_SURREALDB_NS")
-        .unwrap_or_else(|_| "agentrag".to_string());
-    let surreal_database = env::var("CORTEX_SURREALDB_DB")
-        .unwrap_or_else(|_| "system3".to_string());
+    // Initialize CodeGraph (SQLite storage in data/ for persistence)
+    let db_path = std::path::Path::new("data/code_graph.db");
+    let code_db = Arc::new(code_graph::db::CodeGraphDB::new(db_path)?);
+    let code_indexer = Arc::new(code_graph::indexer::Indexer::new(code_db.clone()));
+    let code_query = Arc::new(code_graph::query::QueryEngine::new(code_db.clone()));
 
-    let db = connect(&surreal_url).await?;
-    db.signin(Root {
-        username: surreal_username,
-        password: surreal_password,
-    })
-    .await?;
-    db.use_ns(surreal_namespace).use_db(surreal_database).await?;
-
-    let memory = QmdMemory::new(Arc::new(db));
+    // In-memory storage (minimal viable slice)
+    let docs: Arc<RwLock<Vec<cortex::memory::qmd_memory::MemoryDocument>>> =
+        Arc::new(RwLock::new(Vec::new()));
+    let memory = Arc::new(QmdMemory::new(docs));
     memory.init().await?;
 
-    let runtime = Arc::new(AgentRuntime::new(memory.clone(), RuntimeConfig::default()));
-    let belief_graph = Arc::new(tokio::sync::RwLock::new(
-        memory::belief_graph::BeliefGraph::new(),
+    // Add default startup memories
+    memory.add_document(
+        "system/cortex".to_string(),
+        "Cortex is the central memory system for SWAL agents. Use /memory/add to store, /memory/search to find, /memory/query for AI responses.".to_string(),
+        serde_json::json!({"type": "system", "tags": ["cortex", "memory"]})
+    ).await.unwrap();
+
+    memory.add_document(
+        "system/swal".to_string(),
+        "SouthWest AI Labs (SWAL) builds AI agents. BELA is the developer. Projects: Cortex (memory), ZeroClaw (runtime), ManteniApp (SaaS), Trading Bot.".to_string(),
+        serde_json::json!({"type": "company", "tags": ["swal", "company"]})
+    ).await.unwrap();
+
+    memory.add_document(
+        "docs/api".to_string(),
+        "Cortex API: POST /memory/add (content, path, metadata), POST /memory/search (query, limit), POST /memory/query (query). Auth: X-Cortex-Token header.".to_string(),
+        serde_json::json!({"type": "docs", "tags": ["api"]})
+    ).await.unwrap();
+
+    let runtime = Arc::new(AgentRuntime::new(
+        Arc::clone(&memory),
+        RuntimeConfig::from_env(),
     ));
+    let belief_graph: SharedBeliefGraph = Arc::new(RwLock::new(BeliefGraph::new()));
+    let indexer = FileIndexer::new(
+        cortex::memory::file_indexer::FileIndexerConfig::default(),
+        Some(code_indexer.clone()),
+    );
 
     let state = AppState {
         memory,
         runtime,
         belief_graph,
+        indexer,
+        code_indexer,
+        code_query,
+        code_db,
     };
 
     let app = Router::new()
         .route("/health", get(server::http::health))
+        .route("/memory/add", post(server::http::memory_add))
+        .route("/memory/delete", post(server::http::memory_delete))
         .route("/memory/search", post(server::http::memory_search))
         .route("/memory/query", post(server::http::memory_query))
         .route("/memory/graph", get(server::http::memory_graph))
         .route("/agents/run", post(server::http::agents_run))
         .route("/sync", post(server::http::sync_tier1))
+        .route("/code/scan", post(server::http::code_scan))
+        .route("/code/find", post(server::http::code_find))
+        .route("/code/stats", get(server::http::code_stats))
+        .layer(middleware::from_fn(auth_middleware))
         .with_state(state);
 
     let addr = SocketAddr::from(([0, 0, 0, 0], 8003));
@@ -83,4 +106,27 @@ async fn main() -> Result<()> {
     axum::serve(listener, app).await?;
 
     Ok(())
+}
+
+async fn auth_middleware(req: Request<Body>, next: Next) -> Response {
+    let dev_mode = std::env::var("CORTEX_DEV_MODE").is_ok();
+
+    // Skip auth for health check and in dev mode if explicitly set
+    if req.uri().path() == "/health" || dev_mode {
+        return next.run(req).await;
+    }
+
+    let token = std::env::var("CORTEX_TOKEN").unwrap_or_else(|_| "dev-token".into());
+
+    if let Some(auth_header) = req.headers().get("X-Cortex-Token") {
+        if auth_header == token.as_str() {
+            return next.run(req).await;
+        }
+    }
+
+    (
+        StatusCode::UNAUTHORIZED,
+        "Unauthorized: Invalid or missing X-Cortex-Token",
+    )
+        .into_response()
 }

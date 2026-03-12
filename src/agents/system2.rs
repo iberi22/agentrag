@@ -1,5 +1,5 @@
 //! System 2 - Reasoner Agent
-//! 
+//!
 //! Recibe contexto de System 1, analiza y razona sobre la información.
 
 use anyhow::Result;
@@ -69,11 +69,12 @@ impl System2Reasoner {
 
     pub async fn run(&self, query: &str, context: &RetrievalResult) -> Result<ReasoningResult> {
         let start = std::time::Instant::now();
-        
+
         info!("🧠 System2 reasoning for query: {}", query);
-        
+
         // Simple reasoning - just extract evidence from retrieval
-        let evidence: Vec<Evidence> = context.documents
+        let evidence: Vec<Evidence> = context
+            .documents
             .iter()
             .take(self.config.max_evidence)
             .map(|doc| Evidence {
@@ -82,24 +83,21 @@ impl System2Reasoner {
                 relevance: doc.relevance_score,
             })
             .collect();
-        
+
         let confidence = if evidence.is_empty() {
             0.0
         } else {
             evidence.iter().map(|e| e.relevance).sum::<f32>() / evidence.len() as f32
         };
-        
+
         let analysis = format!(
             "Found {} relevant documents for query '{}'. Confidence: {:.2}",
             evidence.len(),
             query,
             confidence
         );
-        
-        info!(
-            "✅ System2 completed in {:?}",
-            start.elapsed()
-        );
+
+        info!("✅ System2 completed in {:?}", start.elapsed());
 
         Ok(ReasoningResult {
             query: query.to_string(),

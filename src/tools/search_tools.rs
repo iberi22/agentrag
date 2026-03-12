@@ -16,7 +16,11 @@ impl QmdSearchTools {
     }
 
     /// Semantic similarity (vector)
-    pub async fn vsearch(&self, query_vector: Vec<f32>, limit: usize) -> Result<Vec<MemoryDocument>> {
+    pub async fn vsearch(
+        &self,
+        query_vector: Vec<f32>,
+        limit: usize,
+    ) -> Result<Vec<MemoryDocument>> {
         self.memory.vsearch(query_vector, limit).await
     }
 

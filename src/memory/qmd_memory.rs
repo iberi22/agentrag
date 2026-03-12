@@ -1,130 +1,165 @@
-//! QMD Memory - Búsqueda híbrida (BM25 + Vectores)
-//! 
-//! Sistema de memoria con búsqueda híbrida.
+//! QMD Memory - In-memory storage for minimal slice
+//!
+//! Sistema de memoria con búsqueda simple.
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use surrealdb::{engine::any::Any, types::{RecordId, SurrealValue}, Surreal};
+use tokio::sync::RwLock;
 
 /// Documento en memoria
-#[derive(Debug, Clone, Serialize, Deserialize, SurrealValue)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MemoryDocument {
-    pub id: Option<RecordId>,
+    pub id: Option<String>,
     pub path: String,
     pub content: String,
     pub metadata: serde_json::Value,
     pub embedding: Vec<f32>,
 }
 
-/// QMD Memory - Búsqueda híbrida
+/// QMD Memory - In-memory storage
 #[derive(Clone)]
 pub struct QmdMemory {
-    db: Arc<Surreal<Any>>,
+    docs: Arc<RwLock<Vec<MemoryDocument>>>,
 }
 
 impl QmdMemory {
-    pub fn new(db: Arc<Surreal<Any>>) -> Self {
-        Self { db }
+    pub fn new(docs: Arc<RwLock<Vec<MemoryDocument>>>) -> Self {
+        Self { docs }
     }
 
     pub async fn init(&self) -> Result<()> {
-        self.db.query("DEFINE TABLE IF NOT EXISTS memory SCHEMAFULL;").await?;
-        self.db
-            .query("DEFINE FIELD IF NOT EXISTS path ON TABLE memory TYPE string;")
-            .await?;
-        self.db
-            .query("DEFINE FIELD IF NOT EXISTS content ON TABLE memory TYPE string;")
-            .await?;
-        self.db
-            .query("DEFINE FIELD IF NOT EXISTS metadata ON TABLE memory TYPE object FLEXIBLE;")
-            .await?;
-        self.db
-            .query("DEFINE FIELD IF NOT EXISTS embedding ON TABLE memory TYPE array<float>;")
-            .await?;
-        self.db
-            .query("DEFINE INDEX IF NOT EXISTS memory_content_index ON TABLE memory COLUMNS content SEARCH ANALYZER ascii BM25;")
-            .await?;
-        self.db
-            .query("DEFINE INDEX IF NOT EXISTS memory_embedding_index ON TABLE memory COLUMNS embedding MTree DIMENSION 1536 TYPE F32;")
-            .await?;
         Ok(())
     }
 
-    async fn load_all(&self) -> Result<Vec<MemoryDocument>> {
-        Ok(self.db.select("memory").await?)
-    }
-
-    /// search (default): fast keyword match (BM25)
+    /// search: fast keyword match (simple contains)
     pub async fn search(&self, query_text: &str, limit: usize) -> Result<Vec<MemoryDocument>> {
-        let query = query_text.to_lowercase();
-        let docs = self
-            .load_all()
-            .await?
-            .into_iter()
-            .filter(|doc| {
-                doc.content.to_lowercase().contains(&query)
-                    || doc.path.to_lowercase().contains(&query)
-            })
+        let docs = self.docs.read().await;
+        let query_lower = query_text.to_lowercase();
+
+        let results: Vec<_> = docs
+            .iter()
+            .filter(|d| d.content.to_lowercase().contains(&query_lower))
             .take(limit)
+            .cloned()
             .collect();
-        Ok(docs)
+
+        Ok(results)
     }
 
-    /// vsearch: semantic similarity (vector)
-    pub async fn vsearch(&self, query_vector: Vec<f32>, limit: usize) -> Result<Vec<MemoryDocument>> {
-        let mut docs = self.load_all().await?;
-        docs.sort_by(|a, b| {
-            cosine_similarity(&b.embedding, &query_vector)
-                .partial_cmp(&cosine_similarity(&a.embedding, &query_vector))
-                .unwrap_or(std::cmp::Ordering::Equal)
-        });
-        docs.truncate(limit);
-        Ok(docs)
+    /// vsearch: semantic similarity (placeholder - no embeddings)
+    #[allow(dead_code)]
+    pub async fn vsearch(
+        &self,
+        _query_vector: Vec<f32>,
+        limit: usize,
+    ) -> Result<Vec<MemoryDocument>> {
+        let docs = self.docs.read().await;
+        Ok(docs.iter().take(limit).cloned().collect())
     }
 
-    /// query: hybrid search + LLM reranking (fusion)
-    pub async fn query(&self, query_text: &str, query_vector: Vec<f32>, limit: usize) -> Result<Vec<MemoryDocument>> {
-        let mut docs = self.search(query_text, limit.saturating_mul(2)).await?;
-        let semantic_docs = self.vsearch(query_vector, limit.saturating_mul(2)).await?;
-
-        for candidate in semantic_docs {
-            let exists = docs.iter().any(|doc| {
-                doc.id == candidate.id || (!doc.path.is_empty() && doc.path == candidate.path)
-            });
-            if !exists {
-                docs.push(candidate);
-            }
-        }
-
-        docs.truncate(limit);
-        Ok(docs)
+    /// query: hybrid search + LLM reranking (placeholder)
+    pub async fn query(
+        &self,
+        query_text: &str,
+        _query_vector: Vec<f32>,
+        limit: usize,
+    ) -> Result<Vec<MemoryDocument>> {
+        self.search(query_text, limit).await
     }
 
     /// get: retrieve specific document by path or ID
+    #[allow(dead_code)]
     pub async fn get(&self, path_or_id: &str) -> Result<Option<MemoryDocument>> {
-        if path_or_id.contains(':') {
-            let parts: Vec<&str> = path_or_id.splitn(2, ':').collect();
-            if parts.len() == 2 {
-                let record: Option<MemoryDocument> = self.db.select((parts[0], parts[1])).await?;
-                Ok(record)
-            } else {
-                Ok(None)
-            }
-        } else {
-            let docs = self.load_all().await?;
-            Ok(docs.into_iter().find(|doc| doc.path == path_or_id))
-        }
+        let docs = self.docs.read().await;
+        Ok(docs
+            .iter()
+            .find(|d| d.path == path_or_id || d.id.as_deref() == Some(path_or_id))
+            .cloned())
     }
 
+    /// add: insert a document
+    #[allow(dead_code)]
+    pub async fn add(&self, doc: MemoryDocument) -> Result<()> {
+        let mut docs = self.docs.write().await;
+        docs.push(doc);
+        Ok(())
+    }
+
+    /// add_document: convenience method to add a document with auto-generated ID
+    #[allow(dead_code)]
+    pub async fn add_document(
+        &self,
+        path: String,
+        content: String,
+        metadata: serde_json::Value,
+    ) -> Result<()> {
+        let doc = MemoryDocument {
+            id: Some(uuid::Uuid::new_v4().to_string()),
+            path,
+            content,
+            metadata,
+            embedding: vec![],
+        };
+        self.add(doc).await
+    }
+
+    /// delete: remove a document by path or ID
+    pub async fn delete(&self, path_or_id: &str) -> Result<Option<MemoryDocument>> {
+        let mut docs = self.docs.write().await;
+
+        if let Some(index) = docs
+            .iter()
+            .position(|d| d.path == path_or_id || d.id.as_deref() == Some(path_or_id))
+        {
+            return Ok(Some(docs.remove(index)));
+        }
+
+        Ok(None)
+    }
+
+    /// count: number of documents
     pub async fn count(&self) -> Result<usize> {
-        Ok(self.load_all().await?.len())
+        let docs = self.docs.read().await;
+        Ok(docs.len())
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn test_qmd_memory_creation() {
+        let docs: Arc<RwLock<Vec<MemoryDocument>>> = Arc::new(RwLock::new(Vec::new()));
+        let memory = QmdMemory::new(docs);
+        memory.init().await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_delete_by_path_or_id() {
+        let docs: Arc<RwLock<Vec<MemoryDocument>>> = Arc::new(RwLock::new(Vec::new()));
+        let memory = QmdMemory::new(docs);
+
+        let doc = MemoryDocument {
+            id: Some("doc-1".to_string()),
+            path: "memory/doc-1".to_string(),
+            content: "content".to_string(),
+            metadata: serde_json::json!({}),
+            embedding: vec![],
+        };
+
+        memory.add(doc.clone()).await.unwrap();
+
+        let deleted_by_path = memory.delete("memory/doc-1").await.unwrap();
+        assert!(deleted_by_path.is_some());
+        assert_eq!(memory.count().await.unwrap(), 0);
+
+        memory.add(doc).await.unwrap();
+        let deleted_by_id = memory.delete("doc-1").await.unwrap();
+        assert!(deleted_by_id.is_some());
+        assert_eq!(memory.count().await.unwrap(), 0);
+    }
 
     #[test]
     fn test_cosine_similarity() {
@@ -136,6 +171,7 @@ mod tests {
     }
 }
 
+#[allow(dead_code)]
 fn cosine_similarity(left: &[f32], right: &[f32]) -> f32 {
     if left.is_empty() || right.is_empty() || left.len() != right.len() {
         return 0.0;
@@ -146,12 +182,12 @@ fn cosine_similarity(left: &[f32], right: &[f32]) -> f32 {
         .zip(right.iter())
         .map(|(a, b)| a * b)
         .sum::<f32>();
-    let left_norm = left.iter().map(|value| value * value).sum::<f32>().sqrt();
-    let right_norm = right.iter().map(|value| value * value).sum::<f32>().sqrt();
+    let left_mag = left.iter().map(|x| x * x).sum::<f32>().sqrt();
+    let right_mag = right.iter().map(|x| x * x).sum::<f32>().sqrt();
 
-    if left_norm == 0.0 || right_norm == 0.0 {
-        0.0
-    } else {
-        dot / (left_norm * right_norm)
+    if left_mag == 0.0 || right_mag == 0.0 {
+        return 0.0;
     }
+
+    dot / (left_mag * right_mag)
 }

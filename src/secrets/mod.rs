@@ -1,4 +1,5 @@
 use thiserror::Error;
+use std::collections::HashMap;
 
 #[derive(Debug, Error)]
 pub enum SecretError {
@@ -16,9 +17,55 @@ pub enum SecretError {
 
 pub type SecretResult<T> = Result<T, SecretError>;
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Secret {
+    pub key: String,
+    pub value: String,
+}
+
+#[derive(Default)]
+pub struct SecretsManager {
+    secrets: HashMap<String, String>,
+}
+
+impl SecretsManager {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.secrets.is_empty()
+    }
+
+    pub fn store(&mut self, key: String, value: String) -> SecretResult<()> {
+        self.secrets.insert(key, value);
+        Ok(())
+    }
+
+    pub fn get(&self, key: &str) -> SecretResult<String> {
+        self.secrets
+            .get(key)
+            .cloned()
+            .ok_or_else(|| SecretError::NotFound(key.to_string()))
+    }
+
+    pub fn delete(&mut self, key: &str) -> SecretResult<()> {
+        self.secrets.remove(key);
+        Ok(())
+    }
+
+    pub fn exists(&self, key: &str) -> bool {
+        self.secrets.contains_key(key)
+    }
+}
+
+#[allow(dead_code)]
 pub mod daemon;
-pub mod local;
-pub mod openbao;
+#[allow(dead_code)]
 pub mod store;
+#[allow(dead_code)]
+pub mod local;
+#[allow(dead_code)]
+pub mod openbao;
 #[cfg(test)]
 mod tests;

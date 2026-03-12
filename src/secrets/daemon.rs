@@ -1,9 +1,8 @@
-use std::{
-    collections::HashSet,
-    time::{SystemTime, UNIX_EPOCH},
-};
-
-use super::{store::SecretStore, SecretError, SecretResult};
+use super::store::SecretStore;
+use super::SecretError;
+use super::SecretResult;
+use std::collections::HashSet;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 #[derive(Debug, Clone)]
 pub struct Grant {
@@ -27,16 +26,9 @@ impl SecretDaemon {
     }
 
     pub async fn get_secret(&self, key: &str, grant_id: &str) -> SecretResult<String> {
-        let grant = self
-            .active_grants
-            .iter()
-            .find(|grant| grant.id == grant_id && grant.key == key)
-            .ok_or_else(|| {
-                SecretError::ApprovalDenied(format!(
-                    "No valid grant found for key {} with id {}",
-                    key, grant_id
-                ))
-            })?;
+        let grant = self.active_grants.iter()
+            .find(|g| g.id == grant_id && g.key == key)
+            .ok_or_else(|| SecretError::ApprovalDenied(format!("No valid grant found for key {} with id {}", key, grant_id)))?;
 
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -48,31 +40,24 @@ impl SecretDaemon {
         }
 
         if !grant.permissions.contains("read") {
-            return Err(SecretError::ApprovalDenied(
-                "Read permission missing in grant".to_string(),
-            ));
+            return Err(SecretError::ApprovalDenied("Read permission missing in grant".to_string()));
         }
 
         self.store.get(key).await
     }
 
     pub async fn set_secret(&self, key: &str, value: &str) -> SecretResult<()> {
+        // High-stakes action as per System 3 oversight
         log_high_stakes_action("SET_SECRET", key);
         self.store.set(key, value).await
     }
 
-    pub fn issue_grant(
-        &mut self,
-        key: &str,
-        permissions: HashSet<String>,
-        ttl_secs: u64,
-    ) -> String {
+    pub fn issue_grant(&mut self, key: &str, permissions: HashSet<String>, ttl_secs: u64) -> String {
         let id = uuid::Uuid::new_v4().to_string();
         let expires_at = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
-            .as_secs()
-            + ttl_secs;
+            .as_secs() + ttl_secs;
 
         self.active_grants.push(Grant {
             id: id.clone(),
@@ -86,7 +71,7 @@ impl SecretDaemon {
 }
 
 fn log_high_stakes_action(action: &str, key: &str) {
-    println!("HIGH STAKES ACTION DETECTED IN DAEMON");
+    println!("⚠️  HIGH STAKES ACTION DETECTED IN DAEMON");
     println!("Action: {}", action);
     println!("Key: {}", key);
     println!("Context: System 3 Overseer notified.");

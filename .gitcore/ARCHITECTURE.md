@@ -1,18 +1,19 @@
-# Architecture: AgentRAG
+# Architecture: Cortex
 
 ## Core Philosophy
-AgentRAG is a single Rust binary acting as a multi-agent RAG swarm, inspired by the **"System 3" paradigm** (Rational Thought, Meta-Cognition, and Error Correction). This system transcends simple vector retrieval by implementing strict reasoning and self-reflection layers before serving responses.
+Cortex is a single Rust binary acting as a multi-agent cognitive memory swarm, inspired by the **"System 3" paradigm** (Rational Thought, Meta-Cognition, and Error Correction). This system transcends simple vector retrieval by implementing strict reasoning and self-reflection layers before serving responses.
 
 ## Tech Stack
 - **Language**: Rust
 - **Runtime**: Tokio (for massive asynchronous parallelism across agent swarms)
 - **Framework**: `zavora-ai/adk-rust` (Agent Development Kit for agnostic, modular agent building)
 - **Database / Memory**: SurrealDB (Unifies Vector Search and Graph relations for Shared Memory and Belief Graphs)
+- **Advanced Techniques**: BM25 (Hybrid Search), MCP (Model Context Protocol), QMD Memory, Belief Graphs.
 
-## Agent Swarm Layers
-1. **System 1 (Retrievers)**: Fast instinct-like agents powered by SurrealDB Vector Search to fetch raw context and immediate facts quickly.
-2. **System 2 (Reasoners)**: Deliberate agents implementing Chain of Thought (CoT) to construct logical answers based on System 1's context.
-3. **System 3 (Overseer/Critic)**: Meta-cognitive agents that overrule and evaluate System 2's reasoning. They check reasoning steps against a Formal Belief Graph (Graph Nodes in SurrealDB). If anomalies, contradictions or hallucinations are detected, the response is vetoed and sent back for re-evaluation.
+## Agent Swarm Layers (System 1-2-3)
+1. **System 1 (Retrieval)**: Fast instinct-like agents powered by SurrealDB Vector Search and BM25 to fetch raw context and immediate facts quickly.
+2. **System 2 (Reasoning)**: Deliberate agents implementing Chain of Thought (CoT) to construct logical answers based on System 1's context.
+3. **System 3 (Action / Oversight)**: Meta-cognitive agents that overrule and evaluate System 2's reasoning. They check reasoning steps against a Formal Belief Graph (Graph Nodes in SurrealDB) and execute actions or error corrections. If anomalies, contradictions or hallucinations are detected, the response is vetoed and sent back for re-evaluation.
 
 ## CRITICAL DECISIONS
 
@@ -21,3 +22,4 @@ AgentRAG is a single Rust binary acting as a multi-agent RAG swarm, inspired by 
 | 2026-03-05 | Monolithic Rust binary via `adk-rust`      | Maximizes Tokio parallelism & performance while remaining LLM-agnostic. |
 | 2026-03-05 | Multi-Layer System 3 RAG Architecture      | Emulates human rational thought checking to eliminate standard LLM hallucinations.  |
 | 2026-03-05 | SurrealDB as unified Graph/Vector memory   | Simplifies deployment & powers Belief Graph construction dynamically. |
+| 2026-03-10 | Rebranded to Cortex                        | Transitioning to a production-ready cognitive memory system for OpenClaw. |
