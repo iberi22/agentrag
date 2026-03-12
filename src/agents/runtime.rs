@@ -139,19 +139,42 @@ impl AgentRuntime {
             debug!("Using configured model provider: {}", provider);
         }
 
-        // System 1: Retrieval
-        let s1_start = std::time::Instant::now();
-        let retrieval_result = self.system1.run(query, None).await?;
-        let s1_ms = s1_start.elapsed().as_millis() as u64;
+        let mut current_query = query.to_string();
+        let mut retries = 0;
+        let mut final_retrieval = None;
+        let mut final_reasoning = None;
+        let mut s1_total_ms = 0;
+        let mut s2_total_ms = 0;
 
-        debug!("✅ System 1 completed in {}ms", s1_ms);
+        loop {
+            // System 1: Retrieval
+            let s1_start = std::time::Instant::now();
+            let retrieval_result = self.system1.run(&current_query, None).await?;
+            s1_total_ms += s1_start.elapsed().as_millis() as u64;
 
-        // System 2: Reasoning
-        let s2_start = std::time::Instant::now();
-        let reasoning_result = self.system2.run(query, &retrieval_result).await?;
-        let s2_ms = s2_start.elapsed().as_millis() as u64;
+            debug!("✅ System 1 completed in {}ms (retry {})", s1_start.elapsed().as_millis(), retries);
 
-        debug!("✅ System 2 completed in {}ms", s2_ms);
+            // System 2: Reasoning
+            let s2_start = std::time::Instant::now();
+            let reasoning_result = self.system2.run(&current_query, &retrieval_result).await?;
+            s2_total_ms += s2_start.elapsed().as_millis() as u64;
+
+            debug!("✅ System 2 completed in {}ms (retry {})", s2_start.elapsed().as_millis(), retries);
+
+            // Reflection / Context Paging Loop
+            if reasoning_result.confidence >= 0.7 || retries >= self.config.max_retries {
+                final_retrieval = Some(retrieval_result);
+                final_reasoning = Some(reasoning_result);
+                break;
+            }
+
+            info!("⚠️ System 2 confidence too low ({:.2}). Auto-reflecting and expanding query...", reasoning_result.confidence);
+            current_query = format!("{} (expanded context needed)", current_query);
+            retries += 1;
+        }
+
+        let retrieval_result = final_retrieval.unwrap();
+        let reasoning_result = final_reasoning.unwrap();
 
         // System 3: Action
         let s3_start = std::time::Instant::now();
@@ -173,8 +196,8 @@ impl AgentRuntime {
             response: action_result.response,
             confidence: reasoning_result.confidence,
             system_timings: SystemTimings {
-                system1_ms: s1_ms,
-                system2_ms: s2_ms,
+                system1_ms: s1_total_ms,
+                system2_ms: s2_total_ms,
                 system3_ms: s3_ms,
                 total_ms,
             },

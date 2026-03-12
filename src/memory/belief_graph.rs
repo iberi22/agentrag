@@ -78,6 +78,8 @@ pub struct BeliefRelation {
     pub target: String,
     pub relation_type: String,
     pub weight: f32,
+    pub valid_from: Option<chrono::DateTime<chrono::Utc>>,
+    pub valid_until: Option<chrono::DateTime<chrono::Utc>>,
 }
 
 /// Thread-safe belief graph that exposes both sync and async-friendly helpers.
@@ -121,6 +123,8 @@ impl BeliefGraph {
         target: String,
         relation_type: String,
         weight: f32,
+        valid_from: Option<chrono::DateTime<chrono::Utc>>,
+        valid_until: Option<chrono::DateTime<chrono::Utc>>,
     ) {
         let id = uuid::Uuid::new_v4().to_string();
         let relation = BeliefRelation {
@@ -129,6 +133,8 @@ impl BeliefGraph {
             target: target.clone(),
             relation_type: relation_type.clone(),
             weight,
+            valid_from,
+            valid_until,
         };
 
         self.relations.write().unwrap().push(relation);
@@ -195,11 +201,13 @@ impl BeliefGraph {
             belief.object,
             belief.predicate,
             subject_confidence,
+            None,
+            None,
         );
     }
 
     pub async fn add_edge(&self, from: String, to: String, relation: String) {
-        self.add_relation(from, to, relation, Confidence::Medium.score());
+        self.add_relation(from, to, relation, Confidence::Medium.score(), None, None);
     }
 
     pub async fn get_nodes(&self) -> Vec<BeliefNode> {
@@ -356,6 +364,8 @@ mod tests {
             "performance".to_string(),
             "enhances".to_string(),
             0.7,
+            None,
+            None,
         );
 
         let related = graph.get_related("rust");
