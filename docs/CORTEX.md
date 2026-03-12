@@ -55,11 +55,11 @@ Cortex es un **sistema de memoria cognitiva** que permite a los agentes de IA:
 
 | Módulo | Descripción | Estado |
 |--------|-------------|--------|
-| `system1.rs` | Agente de retrieval (búsqueda) | 🔄 |
-| `system2.rs` | Agente de reasoning (razonamiento) | 🔄 |
-| `system3.rs` | Agente de acción (ejecución) | 🔄 |
-| `registry.rs` | Registro de agentes | 🔄 |
-| `runtime.rs` | Runtime de ejecución | 🔄 |
+| `system1.rs` | Agente de retrieval (búsqueda) | ✅ |
+| `system2.rs` | Agente de reasoning (razonamiento) | ✅ |
+| `system3.rs` | Agente de action (ejecución) | ✅ |
+| `registry.rs` | Registro de agentes | ✅ |
+| `runtime.rs` | Runtime de ejecución | ✅ |
 
 ### 3. tools/ - Herramientas
 
@@ -159,10 +159,10 @@ Cortex funciona como **MCP Server** que OpenClaw puede llamar:
 - [ ] File indexer
 
 ### Fase 2: Agentes
-- [ ] System 1 (retrieval)
-- [ ] System 2 (reasoning)
-- [ ] System 3 (action)
-- [ ] Runtime orchestration
+- [x] System 1 (retrieval)
+- [x] System 2 (reasoning)
+- [x] System 3 (action)
+- [x] Runtime orchestration
 
 ### Fase 3: Integración
 - [ ] HTTP Server
@@ -178,6 +178,14 @@ Cortex funciona como **MCP Server** que OpenClaw puede llamar:
 ## Nombre Anterior
 
 - AgentRAG → Cortex
+
+## Flujo de Ejecución RAG (Pipeline Determinista)
+A diferencia de agentes LLM orquestadores de propósito general (ej. AutoGPT) que delegan la decisión de continuar o detenerse en el propio modelo, Cortex utiliza un pipeline determinista en la asimilación y ejecución de la memoria en tres fases:
+1. **System 1 (Retrieval)**: Busca conocimiento semántico e híbrido (BM25 + Vec). 
+2. **System 2 (Reasoning)**: Analiza el contexto. Extrae inferencias lógicas.
+3. **System 3 (Action)**: Toma la decisión o formula la respuesta basada en el razonamiento de System 2.
+
+**Condición de Parada**: El agente finaliza su ciclo de vida y recobra latencia tan pronto como concluye el procesamiento de System 3, encapsulando la respuesta generada con su **nivel de confianza**. En casos de bucles computacionales indeseados del modelo, el manejador `AgentRuntime` hace cumplir _timeouts_ duros obligando al agente a expirar el flujo actual.
 
 ## Links
 
