@@ -31,7 +31,7 @@ uuid = { version = "1.8", features = ["v4"] }
 # HTTP Server
 axum = "0.8"
 tower = "0.5"
-tower-http = { version = "0.6", features = ["cors"] }
+tower-http = { version = "0.6", features = ["cors", "compression-full"] }
 
 # Logging
 tracing = "0.1"
@@ -46,6 +46,7 @@ cron = "0.15"
 
 # State management
 parking_lot = "0.12"
+rusqlite = { version = "0.32.0", features = ["bundled"] }
 
 # File traversal
 walkdir = "2"
@@ -75,6 +76,10 @@ criterion = "0.5"
 name = "cortex-gui"
 path = "src/main_egui.rs"
 required-features = ["egui-standalone"]
+
+[[bench]]
+name = "cortex"
+harness = false
 
 [profile.release]
 opt-level = 3

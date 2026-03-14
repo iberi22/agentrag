@@ -1,12 +1,13 @@
 # Multi-stage build for Cortex
 # Stage 1: Builder
-FROM rust:1.75-bookworm AS builder
+FROM rust:1.88-bookworm AS builder
 
 # Install build dependencies
 RUN apt-get update && apt-get install -y \
     pkg-config \
     libssl-dev \
     protobuf-compiler \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Create app directory
@@ -25,6 +26,7 @@ FROM debian:bookworm-slim
 RUN apt-get update && apt-get install -y \
     ca-certificates \
     libssl3 \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user
@@ -33,7 +35,7 @@ RUN useradd -m -u 1000 cortex && \
     chown -R cortex:cortex /data
 
 # Copy binary from builder
-COPY --from=builder /app/target/release/cortex /usr/local/bin/
+COPY --from=builder /app/target/release/cortex /usr/local/bin/cortex
 
 # Copy data directory
 RUN mkdir -p /app/data
@@ -57,5 +59,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 VOLUME ["/data"]
 
 # Run cortex
-ENTRYPOINT ["cortex"]
-CMD ["serve", "--host", "0.0.0.0", "--port", "8003"]
+ENTRYPOINT ["/usr/local/bin/cortex"]

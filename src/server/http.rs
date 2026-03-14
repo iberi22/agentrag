@@ -174,6 +174,12 @@ pub struct DeleteMemoryResponse {
     pub path: Option<String>,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ResetMemoryResponse {
+    pub status: String,
+    pub removed: usize,
+}
+
 pub async fn health() -> impl IntoResponse {
     // Optimized: return static JSON to reduce allocation/serialization time if called frequently
     const HEALTH_JSON: &str = r#"{"status":"ok","service":"cortex","version":"0.1.0"}"#;
@@ -295,6 +301,21 @@ pub async fn memory_query(
             response: String::new(),
             confidence: 0.0,
             session_id: String::new(),
+        }),
+    }
+}
+
+pub async fn memory_reset(State(state): State<AppState>) -> impl IntoResponse {
+    info!("♻️ Reset memory request");
+
+    match state.memory.clear().await {
+        Ok(removed) => Json(ResetMemoryResponse {
+            status: "ok".to_string(),
+            removed,
+        }),
+        Err(error) => Json(ResetMemoryResponse {
+            status: format!("error: {}", error),
+            removed: 0,
         }),
     }
 }
@@ -505,6 +526,7 @@ mod tests {
             .route("/memory/add", post(memory_add))
             .route("/memory/delete", post(memory_delete))
             .route("/memory/query", post(memory_query))
+            .route("/memory/reset", post(memory_reset))
             .route("/memory/search", post(memory_search))
             .with_state(state)
     }
@@ -560,7 +582,7 @@ mod tests {
 
         assert_eq!(payload.status, "ok");
         assert!(payload.confidence > 0.0);
-        assert!(payload.response.contains("Found 1 relevant documents"));
+        assert!(payload.response.contains("shared cortex memory document"));
 
         let search_request = Request::builder()
             .method("POST")
@@ -637,6 +659,65 @@ mod tests {
                 serde_json::json!({
                     "query": "delete from cortex",
                     "limit": 5
+                })
+                .to_string(),
+            ))
+            .unwrap();
+        let search_response = app.oneshot(search_request).await.unwrap();
+        assert_eq!(search_response.status(), StatusCode::OK);
+
+        let search_body = to_bytes(search_response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let payload: SearchResponse = serde_json::from_slice(&search_body).unwrap();
+        assert!(payload.results.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_memory_reset_clears_shared_memory() {
+        let app = test_router(test_state().await);
+
+        for path in ["reset-doc-1", "reset-doc-2"] {
+            let add_request = Request::builder()
+                .method("POST")
+                .uri("/memory/add")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "path": path,
+                        "content": format!("{path} content"),
+                        "metadata": {"source": "http-test"}
+                    })
+                    .to_string(),
+                ))
+                .unwrap();
+            let add_response = app.clone().oneshot(add_request).await.unwrap();
+            assert_eq!(add_response.status(), StatusCode::OK);
+        }
+
+        let reset_request = Request::builder()
+            .method("POST")
+            .uri("/memory/reset")
+            .body(Body::empty())
+            .unwrap();
+        let reset_response = app.clone().oneshot(reset_request).await.unwrap();
+        assert_eq!(reset_response.status(), StatusCode::OK);
+
+        let reset_body = to_bytes(reset_response.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let payload: ResetMemoryResponse = serde_json::from_slice(&reset_body).unwrap();
+        assert_eq!(payload.status, "ok");
+        assert_eq!(payload.removed, 2);
+
+        let search_request = Request::builder()
+            .method("POST")
+            .uri("/memory/search")
+            .header("content-type", "application/json")
+            .body(Body::from(
+                serde_json::json!({
+                    "query": "content",
+                    "limit": 10
                 })
                 .to_string(),
             ))

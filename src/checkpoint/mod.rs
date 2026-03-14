@@ -1,3 +1,4 @@
+pub mod session;
 #[allow(dead_code)]
 pub mod state;
 
@@ -6,6 +7,8 @@ use std::collections::HashMap;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
+
+pub use session::{SessionCheckpoint, SessionCheckpointInput, MAX_SESSION_CHECKPOINT_BYTES};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Checkpoint {
@@ -16,7 +19,11 @@ pub struct Checkpoint {
 
 impl Checkpoint {
     pub fn new(task_id: String, name: String, data: serde_json::Value) -> Self {
-        Self { task_id, name, data }
+        Self {
+            task_id,
+            name,
+            data,
+        }
     }
 }
 
@@ -35,10 +42,10 @@ impl CheckpointManager {
     }
 
     pub async fn save(&self, checkpoint: Checkpoint) -> Result<()> {
-        self.checkpoints.write().await.insert(
-            Self::key(&checkpoint.task_id, &checkpoint.name),
-            checkpoint,
-        );
+        self.checkpoints
+            .write()
+            .await
+            .insert(Self::key(&checkpoint.task_id, &checkpoint.name), checkpoint);
         Ok(())
     }
 

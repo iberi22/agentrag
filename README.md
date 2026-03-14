@@ -1,230 +1,146 @@
-# 🧠 Cortex: Cognitive Memory for AI Agents
+# Cortex - Sistema de Memoria con IA
 
-[![CI Status](https://img.shields.io/badge/CI-Passing-brightgreen)](https://github.com/southwest-ai-labs/cortex)
-[![Version](https://img.shields.io/badge/Version-0.2.0-blue)](https://github.com/southwest-ai-labs/cortex/releases)
-[![Rust](https://img.shields.io/badge/Rust-1.70+-orange)](https://www.rust-lang.org/)
-[![Docker](https://img.shields.io/badge/Docker-Ready-blue)](https://docker.com/)
+## Versión: 0.2.0 (En desarrollo)
 
-> **Sistema de memoria cognitiva de siguiente generación para agentes de IA**
-> 
-> Production-ready cognitive memory system for AI agents, built with Rust.
+Sistema de memoria empresarial con búsqueda semántica, basado en la arquitectura Context Mode MCP.
 
 ---
 
-## ⚡ Quick Start
+## Características
+
+### Fase 1: FTS5 Keyword Search ✅
+- Búsqueda de texto completo con SQLite FTS5
+- Indexación optimizada de keywords
+- Mejora en la tokenización
+
+### Fase 2: Embedding Integration ✅
+- Integración con pplx-embed (localhost:8002)
+- Búsqueda semántica usando embeddings
+- Similitud coseno para encontrar documentos similares
+- Búsqueda híbrida (keywords + embeddings)
+
+### Fase 3: Checkpoint System ✅
+- Continuidad de sesiones
+- Checkpoints < 2KB
+- Tracking de file edits
+- Tracking de operaciones Git
+- Decisiones clave registradas
+
+### Fase 4: Optimización ✅
+- Cache de embeddings
+- Mejoras de rendimiento
+- Cobertura de tests
+
+---
+
+## Uso
+
+### Iniciar el servidor
 
 ```bash
-# 1. Clone
-git clone https://github.com/southwest-ai-labs/cortex.git
-cd cortex
-
-# 2. Build
-cargo build --release
-
-# 3. Run
-./target/release/cortex serve
-
-# 4. Test
-curl http://localhost:8003/health
+docker run -d --name cortex \
+  -p 8003:8003 \
+  -e CORTEX_TOKEN=dev \
+  -v ./data:/data \
+  cortex:0.2.0
 ```
 
-**Listo!** 🎉
-
----
-
-## 🚀 Production Features
-
-### ✅ Completed
-- **Hybrid Search**: BM25 + Vector embeddings
-- **Memory Store**: Persistent, scalable storage
-- **Belief Graph**: Knowledge representation
-- **MCP Server**: Model Context Protocol integration
-- **REST API**: Full CRUD operations
-- **Web UI**: Dashboard con métricas
-
-### 🔄 In Progress
-- Authentication & RBAC
-- WebSocket real-time
-- Docker multi-arch
-
----
-
-## 📡 API Endpoints
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/health` | Health check |
-| POST | `/memory/add` | Add memory |
-| POST | `/memory/search` | Search memories |
-| POST | `/memory/query` | Query with LLM |
-| GET | `/memory/graph` | Belief graph |
-| POST | `/belief/add` | Add belief |
-| GET | `/stats` | System metrics |
-
----
-
-## 🐳 Docker
+### Agregar memoria
 
 ```bash
-# Pull
-docker pull iberi22/cortex:latest
+curl -X POST http://localhost:8003/memory/add \
+  -H "Content-Type: application/json" \
+  -H "X-Cortex-Token: dev" \
+  -d '{
+    "content": "Información sobre el proyecto...",
+    "path": "proyectos/mi-proyecto",
+    "metadata": {"tipo": "documentación"}
+  }'
+```
 
-# Run
-docker run -p 8003:8003 iberi22/cortex:latest
+### Buscar memoria
 
-# With docker-compose
-docker-compose up -d
+```bash
+curl -X POST http://localhost:8003/memory/search \
+  -H "Content-Type: application/json" \
+  -H "X-Cortex-Token: dev" \
+  -d '{
+    "query": "tu pregunta",
+    "limit": 5
+  }'
 ```
 
 ---
 
-## 📱 Web UI
+## API Reference
 
-Accede a `http://localhost:8003/ui` para:
-- Dashboard de métricas
-- Browser de memorias
-- Visualizador de Belief Graph
-- Configuración
+### Endpoints
 
----
-
-## 🔧 Configuration
-
-```yaml
-server:
-  host: 0.0.0.0
-  port: 8003
-  
-database:
-  type: surrealdb
-  url: mem://localhost:8000
-  
-security:
-  api_token: your-secure-token
-  rate_limit: 1000
-```
+| Método | Ruta | Descripción |
+|--------|------|-------------|
+| GET | /health | Health check |
+| POST | /memory/add | Agregar memoria |
+| POST | /memory/search | Buscar memorias |
+| POST | /memory/query | Query con IA |
+| POST | /code/scan | Escanear código |
+| POST | /code/find | Buscar en código |
+| GET | /code/stats | Estadísticas |
+| GET | /memory/graph | Grafo de memorias |
 
 ---
 
-## 🤖 Integration with OpenClaw
-
-```json
-{
-  "tools": {
-    "mcp": {
-      "servers": {
-        "cortex": {
-          "enabled": true,
-          "url": "http://localhost:8003/mcp"
-        }
-      }
-    }
-  }
-}
-```
-
----
-
-## 📚 Documentation
-
-- [Quick Start Guide](docs/guides/quick-start.md)
-- [API Reference](docs/reference/api.md)
-- [Architecture](docs/architecture/overview.md)
-- [Deployment](docs/deployment/production.md)
-
----
-
-## 🎬 Videos
-
-- [Video 1: Introducción](https://...) 
-- [Video 2: Quick Start](https://...)
-- [Video 3: Memory & Belief Graph](https://...)
-- [Video 4: OpenClaw Integration](https://...)
-- [Video 5: Production Deployment](https://...)
-
----
-
-## 📈 Data Flow & Architecture Visualizations
-
-### Cortex Core Architecture Data Flow
-This infographic illustrates the top-down data flow through the Cortex system architecture:
-1. **API Layer**: Data (queries or documents) enters via REST, WebSocket, or MCP protocols.
-2. **Application Layer**: Business logic and use cases process the incoming requests.
-3. **Domain Layer**: The core cognitive engine where Memory and Belief Graphs are managed, along with Agent orchestration.
-4. **Infrastructure Layer**: The foundation where data is persistently stored in SurrealDB and the Vector Store for fast hybrid retrieval.
-
-![Cortex Architecture Flow](docs/assets/cortex_architecture_flow.png)
-
-### Agent Memory Interaction Data Flow
-This infographic details the step-by-step process of how an AI Agent interacts with the Cortex memory system:
-1. **Agent Query**: The agent initiates a request for context or information.
-2. **Hybrid Search**: Cortex performs a hybrid search combining Semantic Vector Search and Keyword Search (BM25) against the unified memory store.
-3. **Belief Graph Reasoning**: Retrieved data is correlated and enriched using the Belief Graph to extract conceptual relationships.
-4. **Action Output**: The synthesized, rich context is returned to the agent (System 1/2/3) to execute actions or generate responses.
-
-![Agent Memory Interaction](docs/assets/cortex_agents_interaction.png)
-
----
-
-## 🏗️ Architecture
+## Arquitectura
 
 ```
 ┌─────────────────────────────────────────────┐
-│              API Layer (Axum)               │
-│         REST + WebSocket + MCP             │
-└─────────────────────┬───────────────────────┘
-                      │
-┌─────────────────────▼───────────────────────┐
-│           Application Layer                  │
-│      Use Cases & Business Logic             │
-└─────────────────────┬───────────────────────┘
-                      │
-┌─────────────────────▼───────────────────────┐
-│              Domain Layer                    │
-│    Memory + Belief Graph + Tasks            │
-└─────────────────────┬───────────────────────┘
-                      │
-┌─────────────────────▼───────────────────────┐
-│          Infrastructure Layer               │
-│      SurrealDB + Vector Store              │
+│              CORTEX API                     │
+├─────────────────────────────────────────────┤
+│  ┌─────────────┐   ┌──────────────────┐   │
+│  │  Keyword    │   │   Embedding      │   │
+│  │  Search     │   │   Search         │   │
+│  │  (FTS5)     │   │   (Similitud)   │   │
+│  └─────────────┘   └──────────────────┘   │
+│         │                   │               │
+│         └─────────┬─────────┘               │
+│                   ▼                          │
+│         ┌─────────────────┐               │
+│         │  Fusion/Rerank  │               │
+│         │  (Best Results)  │               │
+│         └─────────────────┘               │
+│                   │                          │
+│         ┌────────▼────────┐               │
+│         │   Checkpoint     │               │
+│         │   System         │               │
+│         └──────────────────┘               │
 └─────────────────────────────────────────────┘
 ```
 
 ---
 
-## 📊 Status
+## Desarrollo
 
-| Feature | Status |
-|---------|--------|
-| Memory Store | ✅ Stable |
-| Hybrid Search | ✅ Stable |
-| MCP Server | ✅ Stable |
-| Belief Graph | 🔄 Beta |
-| Web UI | 🔄 Beta |
-| Authentication | 🆕 Planning |
-| Docker Multi-arch | 🆕 Planning |
+### Requisitos
+- Rust
+- Docker
+- SQLite
 
----
+### Build
+```bash
+cargo build --release
+docker build -t cortex:0.2.0 .
+```
 
-## 🤝 Contributing
-
-1. Fork el repo
-2. Crea una rama (`git checkout -b feature/amazing`)
-3. Commit tus cambios (`git commit -m 'Add amazing feature'`)
-4. Push a la rama (`git push origin feature/amazing`)
-5. Abre un Pull Request
+### Tests
+```bash
+cargo test
+```
 
 ---
+inspired by: - https://arxiv.org/html/2402.17753v1
+            - https://github.com/karpathy/autoresearch
 
-## 📄 License
 
-MIT License - ver [LICENSE](LICENSE)
 
----
+## Licencia
 
-## 🔗 Links
-
-- **Repo**: https://github.com/southwest-ai-labs/cortex
-- **Docs**: https://docs.cortex.ai
-- **Discord**: https://discord.gg/cortex
-- **Website**: https://cortex.ai
+MIT - Southwest AI Labs

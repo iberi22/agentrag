@@ -1,0 +1,20 @@
+{
+  "benchmark": "locomo",
+  "dataset": "C:\\Users\\belal\\AppData\\Local\\Temp\\cortex-benchmark-sources\\LoCoMo\\data\\locomo10.json",
+  "samples_evaluated": 1,
+  "questions_evaluated": 2,
+  "metrics": {
+    "overall": {
+      "count": 2,
+      "exact_match": 1.0,
+      "token_f1": 1.0
+    },
+    "by_category": {
+      "2": {
+        "count": 2,
+        "exact_match": 1.0,
+        "token_f1": 1.0
+      }
+    }
+  }
+}

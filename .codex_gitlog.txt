@@ -1,0 +1,10 @@
+16a04af Add self-improving agent: src/agents/self_improve.rs with analyze_performance, generate_improvements, apply_improvements methods
+d356b57 Add SWAL-Evolve autonomous improvement system
+58db073 docs(agent): add SOTA memory architecture research (GraphRAG, MemGPT)
+cfaf805 docs(agent): reflect deterministic stopping conditions and pipeline in Cortex RAG
+a7cac0c Add GitHub Pages workflow for documentation
+afdf83d feat(cortex): integrate stabilized branches into mainline
+b5af821 refactor(core): update main and adjust agents, memory, and tools for new structure
+8f5dc1f chore(scripts): remove legacy gitcore powershell and bash scripts
+0806812 feat(ui): add egui components, web ui, and diagram assets
+a1be512 feat(core): add agent coordination, memory indexing, and kanban tool

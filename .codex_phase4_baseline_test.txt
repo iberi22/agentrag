@@ -1,0 +1,147 @@
+warning: profiles for the non root package will be ignored, specify profiles at the workspace root:
+package:   E:\scripts-python\cortex\web\Cargo.toml
+workspace: E:\scripts-python\cortex\Cargo.toml
+    Blocking waiting for file lock on artifact directory
+   Compiling cortex v0.1.0 (E:\scripts-python\cortex)
+error[E0583]: file not found for module `qmd_memory`
+ --> src\memory\mod.rs:6:1
+  |
+6 | pub mod qmd_memory;
+  | ^^^^^^^^^^^^^^^^^^^
+  |
+  = help: to create the module `qmd_memory`, create file "src\memory\qmd_memory.rs" or "src\memory\qmd_memory\mod.rs"
+  = note: if there is a `mod qmd_memory` elsewhere in the crate already, import it with `use crate::...` instead
+
+warning: unused import: `tokio::sync::RwLock`
+ --> src\agents\mod.rs:9:5
+  |
+9 | use tokio::sync::RwLock;
+  |     ^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `tokio::sync::RwLock`
+ --> src\memory\manager.rs:8:5
+  |
+8 | use tokio::sync::RwLock;
+  |     ^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `warn`
+ --> src\memory\manager.rs:9:21
+  |
+9 | use tracing::{info, warn};
+  |                     ^^^^
+
+warning: unused import: `Grant`
+ --> src\secrets\tests.rs:3:48
+  |
+3 |     use crate::secrets::daemon::{SecretDaemon, Grant};
+  |                                                ^^^^^
+
+error[E0282]: type annotations needed
+  --> src\agents\system1.rs:78:13
+   |
+78 |         let raw_documents = match selected_search_type {
+   |             ^^^^^^^^^^^^^
+...
+99 |         let documents: Vec<RetrievedDocument> = raw_documents
+   |                                                 ------------- type must be known at this point
+   |
+help: consider giving `raw_documents` an explicit type
+   |
+78 |         let raw_documents: /* Type */ = match selected_search_type {
+   |                          ++++++++++++
+
+error[E0282]: type annotations needed
+   --> src\server\http.rs:204:5
+    |
+204 | /     state
+205 | |         .memory
+206 | |         .add_document(path, payload.content, metadata)
+207 | |         .await
+    | |______________^ cannot infer type
+
+error[E0282]: type annotations needed
+   --> src\server\http.rs:222:19
+    |
+222 |       let results = state
+    |  ___________________^
+223 | |         .memory
+224 | |         .search(&payload.query, payload.limit)
+225 | |         .await
+    | |______________^ cannot infer type
+
+error[E0282]: type annotations needed
+   --> src\server\http.rs:362:18
+    |
+362 |     let synced = state.memory.count().await.unwrap_or(0);
+    |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^ cannot infer type
+
+error[E0282]: type annotations needed
+   --> src\server\http.rs:500:9
+    |
+500 |         memory.init().await.unwrap();
+    |         ^^^^^^^^^^^^^^^^^^^ cannot infer type
+
+warning: value assigned to `final_retrieval` is never read
+   --> src\agents\runtime.rs:144:35
+    |
+144 |         let mut final_retrieval = None;
+    |                                   ^^^^
+    |
+    = help: maybe it is overwritten before being read?
+    = note: `#[warn(unused_assignments)]` (part of `#[warn(unused)]`) on by default
+
+warning: value assigned to `final_reasoning` is never read
+   --> src\agents\runtime.rs:145:35
+    |
+145 |         let mut final_reasoning = None;
+    |                                   ^^^^
+    |
+    = help: maybe it is overwritten before being read?
+
+warning: unused variable: `message_id`
+   --> src\coordination\message_bus.rs:564:13
+    |
+564 |         let message_id = message.id.clone();
+    |             ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_message_id`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `rx`
+   --> src\coordination\mod.rs:221:13
+    |
+221 |         let rx = self.bus.register_agent(id, name, capabilities.clone()).await?;
+    |             ^^ help: if this is intentional, prefix it with an underscore: `_rx`
+
+warning: unused variable: `id`
+   --> src\coordination\mod.rs:335:38
+    |
+335 |     pub async fn get_receiver(&self, id: &str) -> Option<tokio::sync::mpsc::Receiver<AgentMessage>> {
+    |                                      ^^ help: if this is intentional, prefix it with an underscore: `_id`
+
+Some errors have detailed explanations: E0282, E0583.
+For more information about an error, try `rustc --explain E0282`.
+warning: `cortex` (lib) generated 8 warnings
+error: could not compile `cortex` (lib) due to 5 previous errors; 8 warnings emitted
+warning: build failed, waiting for other jobs to finish...
+warning: unused variable: `result`
+   --> src\security\prompt_guard.rs:536:13
+    |
+536 |         let result = detector.detect("please ignore");
+    |             ^^^^^^ help: if this is intentional, prefix it with an underscore: `_result`
+
+warning: unused variable: `store`
+   --> src\tasks\sync.rs:262:14
+    |
+262 |         let (store, service, _sync) = create_task_system();
+    |              ^^^^^ help: if this is intentional, prefix it with an underscore: `_store`
+
+warning: unused variable: `store`
+   --> src\tasks\sync.rs:276:14
+    |
+276 |         let (store, service, _sync) = create_task_system();
+    |              ^^^^^ help: if this is intentional, prefix it with an underscore: `_store`
+
+warning: `cortex` (lib test) generated 12 warnings (8 duplicates)
+error: could not compile `cortex` (lib test) due to 6 previous errors; 12 warnings emitted

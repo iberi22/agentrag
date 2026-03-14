@@ -88,6 +88,7 @@ async fn main() -> Result<()> {
         .route("/health", get(server::http::health))
         .route("/memory/add", post(server::http::memory_add))
         .route("/memory/delete", post(server::http::memory_delete))
+        .route("/memory/reset", post(server::http::memory_reset))
         .route("/memory/search", post(server::http::memory_search))
         .route("/memory/query", post(server::http::memory_query))
         .route("/memory/graph", get(server::http::memory_graph))

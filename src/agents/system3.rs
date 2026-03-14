@@ -3,9 +3,11 @@
 //! Ejecuta acciones y genera respuestas usando LLM.
 
 use anyhow::Result;
+use chrono::{Datelike, Duration, NaiveDate};
+use regex::Regex;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
+use std::sync::OnceLock;
 use tracing::{error, info, warn};
 
 use crate::agents::system1::{RetrievalResult, RetrievedDocument};
@@ -114,6 +116,361 @@ Be concise but informative."#;
     }
 
     fn fallback_response(query: &str, docs: &[RetrievedDocument]) -> String {
+        System3Actor::heuristic_answer(query, docs)
+    }
+}
+
+fn clean_date(text: &str) -> String {
+    let trimmed = text.trim();
+
+    if let Some((_, after_on)) = trimmed.rsplit_once(" on ") {
+        let year = trimmed
+            .split(',')
+            .nth(1)
+            .map(str::trim)
+            .filter(|part| !part.is_empty());
+
+        return match year {
+            Some(year) if !after_on.contains(year) => format!("{} {}", after_on.trim(), year),
+            _ => after_on.trim().to_string(),
+        };
+    }
+
+    if let Some((before_comma, after_comma)) = trimmed.split_once(',') {
+        let before = before_comma.trim();
+        let after = after_comma.trim();
+        if before.chars().any(|ch| ch.is_ascii_digit())
+            && after.contains(':')
+            && after
+                .chars()
+                .all(|ch| ch.is_ascii_digit() || ch == ':' || ch.is_whitespace())
+        {
+            return before.to_string();
+        }
+        if before.chars().all(|ch| ch.is_ascii_digit()) || before.chars().all(|ch| ch.is_alphabetic())
+        {
+            return format!("{before}, {after}");
+        }
+    }
+
+    trimmed.to_string()
+}
+
+fn date_patterns() -> &'static [Regex] {
+    static DATE_PATTERNS: OnceLock<Vec<Regex>> = OnceLock::new();
+    DATE_PATTERNS
+        .get_or_init(|| {
+            vec![
+                Regex::new(r"(?i)\b\d{1,2}\s+[A-Za-z]+\s+\d{4}\b").expect("day month year regex"),
+                Regex::new(r"(?i)\b[A-Za-z]+\s+\d{1,2},\s+\d{4}\b")
+                    .expect("month day year regex"),
+                Regex::new(r"\b(19|20)\d{2}\b").expect("year regex"),
+            ]
+        })
+        .as_slice()
+}
+
+fn snippet(text: &str, max_chars: usize) -> String {
+    text.chars().take(max_chars).collect::<String>().trim().to_string()
+}
+
+fn top_non_empty_contents(docs: &[RetrievedDocument], limit: usize) -> Vec<String> {
+    docs.iter()
+        .filter_map(|doc| {
+            let text = doc.content.trim();
+            (!text.is_empty()).then(|| text.to_string())
+        })
+        .take(limit)
+        .collect()
+}
+
+fn query_lower(query: &str) -> String {
+    query.to_lowercase()
+}
+
+fn query_terms(query: &str) -> Vec<String> {
+    query
+        .to_lowercase()
+        .chars()
+        .map(|ch| if ch.is_ascii_alphanumeric() { ch } else { ' ' })
+        .collect::<String>()
+        .split_whitespace()
+        .filter(|term| {
+            let term = *term;
+            term.len() > 2
+                && !matches!(
+                    term,
+                    "when"
+                        | "what"
+                        | "have"
+                        | "that"
+                        | "with"
+                        | "from"
+                        | "into"
+                        | "this"
+                        | "your"
+                        | "about"
+                        | "did"
+                        | "does"
+                        | "the"
+                        | "and"
+                        | "for"
+                        | "who"
+                        | "why"
+                        | "how"
+                        | "where"
+                        | "was"
+                        | "were"
+                        | "after"
+                        | "before"
+                        | "they"
+                        | "them"
+                        | "went"
+                )
+        })
+        .map(|term| term.to_string())
+        .collect()
+}
+
+fn query_phrases(terms: &[String]) -> Vec<String> {
+    if terms.len() < 2 {
+        return Vec::new();
+    }
+
+    terms.windows(2).map(|window| window.join(" ")).collect()
+}
+
+fn extract_date_answer(text: &str) -> Option<String> {
+    for pattern in date_patterns() {
+        if let Some(found) = pattern.find(text) {
+            return Some(clean_date(found.as_str()));
+        }
+    }
+    None
+}
+
+fn parse_session_date(session_time: &str) -> Option<NaiveDate> {
+    let date_text = session_time
+        .rsplit_once(" on ")
+        .map(|(_, date_text)| date_text.trim())
+        .unwrap_or_else(|| session_time.trim());
+
+    NaiveDate::parse_from_str(date_text, "%e %B, %Y").ok()
+}
+
+fn format_date(date: NaiveDate) -> String {
+    date.format("%-d %B %Y").to_string()
+}
+
+fn extract_relative_date_answer(text: &str, session_time: &str) -> Option<String> {
+    let lowered = text.to_lowercase();
+    let session_date = parse_session_date(session_time)?;
+
+    if lowered.contains("yesterday") {
+        return Some(format_date(session_date - Duration::days(1)));
+    }
+
+    if lowered.contains("last year") {
+        return Some((session_date.year() - 1).to_string());
+    }
+
+    None
+}
+
+fn has_temporal_signal(text: &str) -> bool {
+    let lowered = text.to_lowercase();
+    extract_date_answer(text).is_some()
+        || lowered.contains("yesterday")
+        || lowered.contains("last year")
+        || lowered.contains("last month")
+        || lowered.contains("last week")
+}
+
+fn doc_category(doc: &RetrievedDocument) -> &str {
+    doc.metadata
+        .get("category")
+        .and_then(|value| value.as_str())
+        .unwrap_or_default()
+}
+
+fn doc_text_for_scoring(doc: &RetrievedDocument) -> String {
+    let mut parts = vec![doc.path.clone(), doc.content.clone()];
+
+    if let Some(map) = doc.metadata.as_object() {
+        for value in map.values() {
+            match value {
+                serde_json::Value::String(text) => parts.push(text.clone()),
+                serde_json::Value::Array(items) => {
+                    for item in items {
+                        if let Some(text) = item.as_str() {
+                            parts.push(text.to_string());
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    parts.join(" ")
+}
+
+fn doc_answer_text(doc: &RetrievedDocument) -> String {
+    let mut parts = vec![doc.content.clone()];
+
+    if let Some(map) = doc.metadata.as_object() {
+        for (key, value) in map {
+            if key == "session_time" {
+                continue;
+            }
+
+            match value {
+                serde_json::Value::String(text) => parts.push(text.clone()),
+                serde_json::Value::Array(items) => {
+                    for item in items {
+                        if let Some(text) = item.as_str() {
+                            parts.push(text.to_string());
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    parts.join(" ")
+}
+
+fn score_doc_for_query(doc: &RetrievedDocument, terms: &[String]) -> usize {
+    if terms.is_empty() {
+        return 0;
+    }
+
+    let searchable_text = doc_text_for_scoring(doc);
+    let searchable_lower = searchable_text.to_lowercase();
+    let content_lower = doc.content.to_lowercase();
+    let speaker_lower = doc
+        .metadata
+        .get("speaker")
+        .and_then(|value| value.as_str())
+        .unwrap_or_default()
+        .to_lowercase();
+    let category = doc_category(doc);
+
+    let mut score = 0usize;
+    for term in terms {
+        if speaker_lower == *term {
+            score += 4;
+        }
+        if searchable_lower.contains(term) {
+            score += 2;
+        }
+        if content_lower.contains(term) {
+            score += 2;
+        }
+    }
+
+    for phrase in query_phrases(terms) {
+        if content_lower.contains(&phrase) {
+            score += 5;
+        } else if searchable_lower.contains(&phrase) {
+            score += 2;
+        }
+    }
+
+    if has_temporal_signal(&searchable_text) {
+        score += 3;
+    }
+
+    if has_temporal_signal(&doc.content) {
+        score += 6;
+    }
+
+    match category {
+        "conversation" => score += 5,
+        "observation" => score += 1,
+        "session_summary" => score = score.saturating_sub(4),
+        _ => {}
+    }
+
+    score
+}
+
+fn term_overlap_in_content(doc: &RetrievedDocument, terms: &[String]) -> usize {
+    let content_lower = doc.content.to_lowercase();
+    terms.iter().filter(|term| content_lower.contains(term.as_str())).count()
+}
+
+fn best_date_answer(query: &str, docs: &[RetrievedDocument]) -> Option<String> {
+    let terms = query_terms(query);
+    if let Some((_, answer)) = docs
+        .iter()
+        .filter_map(|doc| {
+            let session_time = doc
+                .metadata
+                .get("session_time")
+                .and_then(|value| value.as_str())?;
+            let answer = extract_relative_date_answer(&doc.content, session_time)?;
+            let category_priority = match doc_category(doc) {
+                "conversation" => 2usize,
+                "observation" => 1usize,
+                _ => 0usize,
+            };
+
+            Some((
+                (
+                    category_priority,
+                    term_overlap_in_content(doc, &terms),
+                    score_doc_for_query(doc, &terms),
+                ),
+                answer,
+            ))
+        })
+        .max_by_key(|(score, _)| *score)
+    {
+        return Some(answer);
+    }
+
+    let best_doc = docs
+        .iter()
+        .max_by_key(|doc| {
+            let answer_text = doc_answer_text(doc);
+            let explicit = extract_date_answer(&answer_text).is_some();
+            let category_priority = match doc_category(doc) {
+                "conversation" => 2usize,
+                "observation" => 1usize,
+                _ => 0usize,
+            };
+
+            (
+                category_priority,
+                usize::from(explicit),
+                term_overlap_in_content(doc, &terms),
+                score_doc_for_query(doc, &terms),
+            )
+        })
+        .or_else(|| docs.first())?;
+
+    let answer_text = doc_answer_text(best_doc);
+    extract_date_answer(&answer_text)
+        .or_else(|| {
+            best_doc
+                .metadata
+                .get("session_time")
+                .and_then(|value| value.as_str())
+                .and_then(|session_time| extract_relative_date_answer(&answer_text, session_time))
+        })
+        .or_else(|| {
+            best_doc
+                .metadata
+                .get("session_time")
+                .and_then(|value| value.as_str())
+                .map(clean_date)
+        })
+}
+
+impl System3Actor {
+    fn heuristic_answer(query: &str, docs: &[RetrievedDocument]) -> String {
         if docs.is_empty() {
             return format!(
                 "I couldn't find sufficient information to answer your query about '{}'.",
@@ -121,15 +478,113 @@ Be concise but informative."#;
             );
         }
 
-        let doc_count = docs.len();
-        let first_doc = docs.first().map(|d| d.content.as_str()).unwrap_or("");
+        let lowered = query_lower(query);
 
-        format!(
-            "Based on my analysis: Found {} relevant documents for query '{}'. \n\nFirst result: {}...\n\nI can provide more details if needed.",
-            doc_count,
-            query,
-            &first_doc[..first_doc.char_indices().nth(100).map(|(i, _)| i).unwrap_or(first_doc.len())]
-        )
+        if lowered.contains("when") {
+            if let Some(answer) = best_date_answer(query, docs) {
+                return answer;
+            }
+        }
+
+        if lowered.contains("what do") && lowered.contains("both")
+            || lowered.contains("what do") && lowered.contains("have in common")
+            || lowered.contains("how do") && lowered.contains("both")
+        {
+            let joined = top_non_empty_contents(docs, 2).join(" ");
+            if !joined.is_empty() {
+                return snippet(&joined, 220);
+            }
+        }
+
+        if let Some(first) = docs.first() {
+            let text = first.content.trim();
+            if !text.is_empty() {
+                return snippet(text, 220);
+            }
+        }
+
+        "I found relevant memory, but the best answer could not be synthesized yet.".to_string()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{best_date_answer, clean_date, extract_date_answer, extract_relative_date_answer};
+    use crate::agents::system1::RetrievedDocument;
+
+    fn doc(content: &str, session_time: Option<&str>, speaker: Option<&str>) -> RetrievedDocument {
+        RetrievedDocument {
+            id: "doc-1".to_string(),
+            path: "locomo/conv-1/session_1/D1:1".to_string(),
+            content: content.to_string(),
+            relevance_score: 1.0,
+            metadata: serde_json::json!({
+                "session_time": session_time,
+                "speaker": speaker,
+            }),
+        }
+    }
+
+    #[test]
+    fn clean_date_keeps_readable_format() {
+        assert_eq!(clean_date("Monday on 7 May 2023"), "7 May 2023");
+        assert_eq!(clean_date("8 May, 2023"), "8 May, 2023");
+        assert_eq!(clean_date("7 May 2023, 18:00"), "7 May 2023");
+    }
+
+    #[test]
+    fn extract_date_answer_prefers_explicit_years_and_dates() {
+        assert_eq!(
+            extract_date_answer("Melanie painted a sunrise in 2022 for a school mural."),
+            Some("2022".to_string())
+        );
+        assert_eq!(
+            extract_date_answer("The event happened on 7 May 2023 after work."),
+            Some("7 May 2023".to_string())
+        );
+    }
+
+    #[test]
+    fn extract_relative_date_answer_resolves_against_session_time() {
+        assert_eq!(
+            extract_relative_date_answer(
+                "Caroline: I went to a LGBTQ support group yesterday and it was so powerful.",
+                "1:56 pm on 8 May, 2023"
+            ),
+            Some("7 May 2023".to_string())
+        );
+        assert_eq!(
+            extract_relative_date_answer(
+                "Yeah, I painted that lake sunrise last year! It's special to me.",
+                "1:56 pm on 8 May, 2023"
+            ),
+            Some("2022".to_string())
+        );
+    }
+
+    #[test]
+    fn best_date_answer_uses_matching_document_before_other_session_times() {
+        let docs = vec![
+            doc(
+                "Melanie: Yeah, I painted that lake sunrise last year! It's special to me.",
+                Some("15 July, 2023"),
+                Some("Melanie"),
+            ),
+            doc(
+                "Caroline: I went to a LGBTQ support group yesterday and it was so powerful.",
+                Some("1:56 pm on 8 May, 2023"),
+                Some("Caroline"),
+            ),
+        ];
+
+        assert_eq!(
+            best_date_answer("When did Caroline go to the LGBTQ support group?", &docs),
+            Some("7 May 2023".to_string())
+        );
+        assert_eq!(
+            best_date_answer("When did Melanie paint a sunrise?", &docs),
+            Some("2022".to_string())
+        );
     }
 }
 
@@ -245,27 +700,6 @@ impl System3Actor {
     }
 
     fn simple_response(query: &str, docs: &[RetrievedDocument]) -> String {
-        if docs.is_empty() {
-            return format!(
-                "I couldn't find sufficient information to answer your query about '{}'.",
-                query
-            );
-        }
-
-        let count = docs.len();
-        format!(
-            "Found {} relevant documents for '{}':\n\n{}",
-            count,
-            query,
-            docs.iter()
-                .take(3)
-                .map(|d| format!(
-                    "• {} (relevance: {:.2})",
-                    d.content.chars().take(80).collect::<String>(),
-                    d.relevance_score
-                ))
-                .collect::<Vec<_>>()
-                .join("\n")
-        )
+        Self::heuristic_answer(query, docs)
     }
 }

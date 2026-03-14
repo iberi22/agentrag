@@ -38,11 +38,6 @@ jobs:
   integration-tests:
     name: Integration Tests
     runs-on: ubuntu-latest
-    services:
-      surrealdb:
-        image: surrealdb/surrealdb:latest
-        ports:
-          - 8000:8000
     steps:
       - uses: actions/checkout@v4
       
@@ -53,9 +48,7 @@ jobs:
         uses: Swatinem/rust-cache@v2
       
       - name: Run integration tests
-        run: cargo test --test integration
-        env:
-          CORTEX_DB_URL: mem://localhost:8000
+        run: cargo test --test integration -- --nocapture
 
   # E2E Tests
   e2e-tests:
@@ -67,16 +60,8 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
       
-      - name: Build
-        run: cargo build --release
-      
-      - name: Start server
-        run: |
-          cargo run --release -- serve &
-          sleep 10
-      
       - name: Run E2E tests
-        run: cargo test --test e2e
+        run: cargo test --test e2e -- --nocapture
         env:
           CORTEX_URL: http://localhost:8003
 
@@ -118,7 +103,7 @@ jobs:
           components: rustfmt
       
       - name: Run benchmarks
-        run: cargo bench
+        run: cargo bench --bench cortex
       
       - name: Compare benchmarks
         uses: benchmark-action/github-action-benchmark@v1

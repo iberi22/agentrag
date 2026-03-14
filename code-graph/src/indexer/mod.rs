@@ -50,8 +50,9 @@ impl Indexer {
                 // Get extension
                 let ext = file_path.extension().and_then(|e| e.to_str()).unwrap_or("");
 
-                // Only process Rust files for now
-                if ext != "rs" {
+                // Support multiple languages
+                let supported = ["rs", "ts", "tsx", "js", "jsx", "py", "go", "java", "c", "cpp", "h"];
+                if !supported.contains(&ext) {
                     return Ok(());
                 }
 
