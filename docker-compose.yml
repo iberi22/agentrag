@@ -23,7 +23,7 @@ services:
       - cortex_logs:/logs
     depends_on:
       surrealdb:
-        condition: service_healthy
+        condition: service_started
     networks:
       - cortex_network
     healthcheck:
@@ -41,6 +41,7 @@ services:
     image: surrealdb/surrealdb:latest
     container_name: surrealdb
     restart: unless-stopped
+    command: start --user root --pass root --bind 0.0.0.0:8000
     ports:
       - "8000:8000"
       - "8001:8001"
