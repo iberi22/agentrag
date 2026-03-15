@@ -58,7 +58,7 @@ egui_extras = { version = "0.29", optional = true, features = ["image", "serde"]
 
 # Security - Prompt Injection Detection
 regex = "1.10"
-once_cell = "1.19"
+once_cell = "1.21"
 sha2 = "0.10"
 hex = "0.4"
 
