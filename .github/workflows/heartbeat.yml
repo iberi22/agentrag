@@ -1,0 +1,177 @@
+name: Project Heartbeat
+
+on:
+  schedule:
+    # Run every 15 minutes
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+    inputs:
+      project:
+        description: 'Project to check'
+        required: false
+        default: ''
+
+jobs:
+  heartbeat:
+    name: Project Heartbeat
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check GitHub Issues
+        id: issues
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const repo = context.repo;
+            
+            // Get open issues
+            const openIssues = await github.rest.issues.listForRepo({
+              owner: repo.owner,
+              repo: repo.repo,
+              state: 'open',
+              per_page: 20
+            });
+            
+            // Get pending PRs
+            const openPRs = await github.rest.pulls.list({
+              owner: repo.owner,
+              repo: repo.repo,
+              state: 'open',
+              per_page: 10
+            });
+            
+            // Get recent commits
+            const recentCommits = await github.rest.repos.listCommits({
+              owner: repo.owner,
+              repo: repo.repo,
+              per_page: 5
+            });
+            
+            console.log(`📊 Open Issues: ${openIssues.data.length}`);
+            console.log(`📝 Open PRs: ${openPRs.data.length}`);
+            console.log(`📦 Recent Commits: ${recentCommits.data.length}`);
+            
+            // Set outputs
+            core.setOutput('issues_count', openIssues.data.length);
+            core.setOutput('prs_count', openPRs.data.length);
+            
+            // Find issues needing attention (no activity > 7 days)
+            const staleIssues = openIssues.data.filter(issue => {
+              const updated = new Date(issue.updated_at);
+              const daysOld = (Date.now() - updated.getTime()) / (1000 * 60 * 60 * 24);
+              return daysOld > 7;
+            });
+            
+            core.setOutput('stale_issues', staleIssues.length);
+            
+            return {
+              issues: openIssues.data.length,
+              prs: openPRs.data.length,
+              stale: staleIssues.length
+            };
+
+      - name: Check Running Workflows
+        id: workflows
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const repo = context.repo;
+            
+            // Get recent workflow runs
+            const runs = await github.rest.actions.listRunsForRepo({
+              owner: repo.owner,
+              repo: repo.repo,
+              per_page: 5
+            });
+            
+            const inProgress = runs.data.workflow_runs.filter(run => run.status === 'in_progress');
+            const failed = runs.data.workflow_runs.filter(run => run.conclusion === 'failure');
+            
+            console.log(`⚡ Running: ${inProgress.length}`);
+            console.log(`❌ Failed: ${failed.length}`);
+            
+            core.setOutput('running_workflows', inProgress.length);
+            core.setOutput('failed_workflows', failed.length);
+
+      - name: Generate Report
+        id: report
+        run: |
+          ISSUES=${{ steps.issues.outputs.issues_count }}
+          PRS=${{ steps.issues.outputs.prs_count }}
+          STALE=${{ steps.issues.outputs.stale_issues }}
+          RUNNING=${{ steps.workflows.outputs.running_workflows }}
+          FAILED=${{ steps.workflows.outputs.failed_workflows }}
+          
+          echo "## 📊 Project Heartbeat" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Count |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Open Issues | $ISSUES |" >> $GITHUB_STEP_SUMMARY
+          echo "| Open PRs | $PRS |" >> $GITHUB_STEP_SUMMARY
+          echo "| Stale Issues (>7d) | $STALE |" >> $GITHUB_STEP_SUMMARY
+          echo "| Running Workflows | $RUNNING |" >> $GITHUB_STEP_SUMMARY
+          echo "| Failed Workflows | $FAILED |" >> $GITHUB_STEP_SUMMARY
+
+      - name: Notify on Critical Issues
+        if: steps.issues.outputs.stale_issues > 5 || steps.workflows.outputs.failed_workflows > 0
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const stale = ${{ steps.issues.outputs.stale_issues }};
+            const failed = ${{ steps.workflows.outputs.failed_workflows }};
+            
+            let body = '⚠️ **Project Alert**\n\n';
+            
+            if (stale > 5) {
+              body += `• ${stale} stale issues (>7 days)\n`;
+            }
+            
+            if (failed > 0) {
+              body += `• ${failed} failed workflow runs\n`;
+            }
+            
+            // Create issue comment or notification
+            console.log('Alert triggered:', body);
+
+  check-projects:
+    name: Multi-Project Status
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule'
+    steps:
+      - name: Get Projects from Org
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // List all repos in the organization
+            const org = 'southwest-ai-labs';
+            
+            try {
+              const repos = await github.rest.orgs.listRepos({
+                org: org,
+                per_page: 20
+              });
+              
+              console.log(`Found ${repos.data.length} repositories`);
+              
+              const projectSummary = repos.data.map(repo => {
+                return `• ${repo.name}`;
+              }).join('\n');
+              
+              console.log(projectSummary);
+              
+              core.setOutput('repo_count', repos.data.length);
+            } catch (e) {
+              console.log('Error listing repos:', e.message);
+            }
+
+  daily-summary:
+    name: Daily Summary
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' && github.event.schedule[0] == '0 0 * * *'
+    steps:
+      - name: Generate Daily Summary
+        run: |
+          echo "## 📅 Daily Project Summary" >> $GITHUB_STEP_SUMMARY
+          echo "Generated at: $(date)" >> $GITHUB_STEP_SUMMARY
