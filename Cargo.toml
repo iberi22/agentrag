@@ -54,7 +54,7 @@ walkdir = "2"
 # egui - Native UI (optional, for web UI)
 egui = { version = "0.29", optional = true }
 eframe = { version = "0.29", default-features = false, optional = true, features = ["default_fonts", "glow"] }
-egui_extras = { version = "0.29", optional = true, features = ["image", "serde"] }
+egui_extras = { version = "0.33", optional = true, features = ["image", "serde"] }
 
 # Security - Prompt Injection Detection
 regex = "1.10"
